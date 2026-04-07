@@ -47,7 +47,7 @@ export function isUnauthorizedError(err) {
   return err?.response?.status === 401
 }
 
-export function isBackendUnavailableError(err) {
+function isBackendUnavailableError(err) {
   if (!err) return false
   // 主动取消/中断不应提示“后端不可达”
   if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError' || err.name === 'AbortError') return false

@@ -1,5 +1,5 @@
 /**
- * 系统巡检：发起批量可达性探测、分页报告列表、报告明细、删除报告。
+ * 系统巡检：发起批量可达性探测、分页报告列表、报告明细。
  */
 import request from './request'
 
@@ -32,8 +32,4 @@ export function getInspectionReports(params) {
 
 export function getInspectionReport(id) {
   return request.get(`/inspection/reports/${id}`)
-}
-
-export function deleteInspectionReport(id) {
-  return request.delete(`/inspection/reports/${id}`)
 }

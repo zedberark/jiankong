@@ -2,10 +2,10 @@
 
 类似 Zabbix 的监控系统，用于监控 **VM 虚拟机 Linux**、**eNSP 模拟器**中的防火墙/交换机/路由器，并提供 **Web SSH** 终端。后端已对接 **nebula_ops** 数据库与您提供的表结构。
 
-- **后端**: Spring Boot 3 + MySQL(nebula_ops) + InfluxDB + Redis + RabbitMQ  
+- **后端**: Spring Boot 3 + MySQL(nebula_ops) + InfluxDB + Redis  
 - **前端**: Vue 3 + Vite，白色主题  
 - **数据库**: 使用您提供的 `nebula_ops` 建表脚本（device / monitor_item / alert_rule / alert_history / notification_log / sys_user / role / user_role / audit_log / webssh_session / sys_permission / role_permission）  
-- **Docker**: MySQL / Redis / RabbitMQ / InfluxDB 均部署在 **192.168.1.160** 虚拟机 Linux 的 Docker 中，后端通过该 IP 连接  
+- **Docker**: MySQL / Redis / InfluxDB 均部署在 **192.168.1.160** 虚拟机 Linux 的 Docker 中，后端通过该 IP 连接  
 
 ---
 
@@ -30,7 +30,7 @@ ALTER TABLE device
 
 ### 2. 与 Docker 环境对接（全部在 192.168.1.160 虚拟机）
 
-**典型用法：本机 Windows 用 IDEA 运行 NetPulse 后端，连接虚拟机 Linux (192.168.1.160) 上的 MySQL、Redis、RabbitMQ、InfluxDB。**
+**典型用法：本机 Windows 用 IDEA 运行 NetPulse 后端，连接虚拟机 Linux (192.168.1.160) 上的 MySQL、Redis、InfluxDB。**
 
 所有中间件均部署在 **192.168.1.160** 的 Linux Docker 中，`application.yml` 默认已指向该 IP，在 Windows 上直接运行主类即可，无需改配置：
 
@@ -38,12 +38,11 @@ ALTER TABLE device
 |--------|------------------------------|------|
 | MySQL | `192.168.1.160:3309`，库 `nebula_ops` | 用户名 root，密码 root123456 |
 | Redis | `192.168.1.160:6379` | 密码 root123456 |
-| RabbitMQ | `192.168.1.160:5672` | 用户名 admin，密码 root123456 |
 | InfluxDB | `http://192.168.1.160:8086` | org=nebula_org, bucket=device_metrics, token=nebula_token_2026 |
 
 **要求**：Windows 本机要能访问 192.168.1.160（同一网段、虚拟机网络为桥接或 NAT 且端口已映射）。可在本机执行 `ping 192.168.1.160` 测试。
 
-若 Docker 不在 192.168.1.160，可在 IDEA 运行配置或本机环境变量中设置：`MYSQL_HOST`、`REDIS_HOST`、`RABBITMQ_HOST`、`INFLUXDB_URL` 等覆盖默认 IP。
+若 Docker 不在 192.168.1.160，可在 IDEA 运行配置或本机环境变量中设置：`MYSQL_HOST`、`REDIS_HOST`、`INFLUXDB_URL` 等覆盖默认 IP。
 
 **启动失败：HikariPool-1 - Exception during pool initialization**  
 说明 **MySQL 连接失败**（无法建立数据库连接）。若日志中有 **`Caused by: java.net.ConnectException: Connection timed out`**，表示本机连不上 **192.168.1.160**（虚拟机未开或网络不通）。
@@ -84,7 +83,7 @@ ALTER TABLE device
 
 若 InfluxDB 能在浏览器打开（如 `http://192.168.1.160:8086/orgs/xxx`）且 `docker ps` 有容器，但后端 `/api/metrics/influxdb-status` 显示连接失败，请核对 `application.yml` 里 `influxdb.org`、`influxdb.bucket`、`influxdb.token` 与 InfluxDB 界面中的组织名、存储桶、Token 一致。
 
-后端依赖的 MySQL / Redis / RabbitMQ 若启动失败，后端日志会报错；需要单独检查时可在 **192.168.1.160 虚拟机里**用 Docker 或对应客户端（如 `mysql -h 192.168.1.160 -P 3309 -u root -p`、`redis-cli -h 192.168.1.160 -a root123456 ping`）验证。
+后端依赖的 MySQL / Redis 若启动失败，后端日志会报错；需要单独检查时可在 **192.168.1.160 虚拟机里**用 Docker 或对应客户端（如 `mysql -h 192.168.1.160 -P 3309 -u root -p`、`redis-cli -h 192.168.1.160 -a root123456 ping`）验证。
 
 **网络设备 SNMP 采集（已默认关闭）**：  
 当前 **SNMP 采集默认关闭**（`snmp.collect.enabled=false`），实时指标页不显示「网络设备」表。若需采集 **EVE-NG 模拟器** 中路由器/交换机/防火墙的 CPU、内存：  

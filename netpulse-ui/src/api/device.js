@@ -33,11 +33,6 @@ export function pingDevice(id) {
   return request.get(`/devices/${id}/ping`)
 }
 
-/** 对指定设备执行一次 SNMP 采集并写入 Redis（仅对已配置 SNMP 的网络设备有效） */
-export function collectSnmpDevice(id) {
-  return request.post(`/devices/${id}/collect-snmp`)
-}
-
 /** 设备健康汇总：各状态数量（normal/warning/critical/offline） */
 export function getDevicesHealth() {
   return request.get('/devices/health')

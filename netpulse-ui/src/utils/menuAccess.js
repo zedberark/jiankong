@@ -2,7 +2,7 @@
  * 与后端 MenuConstants / 登录 user 一致：侧栏与路由守卫共用。
  * 管理员（角色码 ADMIN，忽略大小写）视为拥有全部菜单，避免 allowedMenus 与 role_menu 不同步时无法进入页面。
  */
-export function isAdminUser(user) {
+function isAdminUser(user) {
   if (!user || !Array.isArray(user.roles)) return false
   return user.roles.some((r) => String(r || '').trim().toUpperCase() === 'ADMIN')
 }

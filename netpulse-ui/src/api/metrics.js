@@ -3,11 +3,6 @@
  */
 import request from './request'
 
-/** 指标汇总（up/down 等，供首页使用） */
-export function getMetricsSummary() {
-  return request.get('/metrics/summary')
-}
-
 /** 最近 24 小时按时间段的在线/离线设备数（首页柱状图）。可选 params.group 按分组过滤 */
 export function getDeviceStatusTimeline(params) {
   return request.get('/metrics/device-status-timeline', { params: params || {} })
