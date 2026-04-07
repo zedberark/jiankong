@@ -3,9 +3,8 @@
     <p class="pdf-meta">
       {{ formatTime(detail.createdAt) }}
       · {{ sourceLabel(detail.source) }}
-      · {{ detail.scheduleLabel || '-' }}
       · 分组 {{ detail.groupName || '全部' }}
-      · 设备 {{ detail.totalCount }} 台 · 正常 {{ detail.okCount }} · 延迟高 {{ detail.warnCount }} · 离线 {{ detail.offlineCount }}
+      · 设备 {{ detail.totalCount }} 台 · 正常 {{ detail.okCount }} · 离线 {{ detail.offlineCount }}
     </p>
     <div v-if="detail.aiSummary" class="pdf-ai-block">
       <h4 class="pdf-ai-title">AI 巡检结论</h4>
@@ -57,7 +56,7 @@ function sourceLabel(s) {
 
 function statusLabel(s) {
   if (s === 'normal') return '正常'
-  if (s === 'warning') return '延迟偏高'
+  if (s === 'warning') return '需注意'
   if (s === 'offline') return '离线'
   return s || '-'
 }

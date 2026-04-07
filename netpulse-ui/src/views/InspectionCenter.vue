@@ -39,9 +39,7 @@
                 <th>分组</th>
                 <th>设备数</th>
                 <th>正常</th>
-                <th>延迟高</th>
                 <th>离线</th>
-                <th>AI</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -52,12 +50,7 @@
                 <td>{{ lastReportPreview.groupName || '全部' }}</td>
                 <td>{{ lastReportPreview.totalCount }}</td>
                 <td class="ok">{{ lastReportPreview.okCount }}</td>
-                <td class="warn">{{ lastReportPreview.warnCount }}</td>
                 <td class="off">{{ lastReportPreview.offlineCount }}</td>
-                <td>
-                  <span v-if="lastReportPreview.aiSummary" class="ai-badge" title="已生成 AI 结论">AI</span>
-                  <span v-else class="ai-badge empty">—</span>
-                </td>
                 <td class="actions">
                   <button type="button" class="link-btn" @click="openDetail(lastReportPreview.id)">明细</button>
                   <button type="button" class="link-btn" @click="goReportsTab">报告列表</button>
@@ -101,13 +94,10 @@
             <tr>
               <th>开始时间</th>
               <th>来源</th>
-              <th>说明</th>
               <th>分组</th>
               <th>设备数</th>
               <th>正常</th>
-              <th>延迟高</th>
               <th>离线</th>
-              <th>AI</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -115,19 +105,16 @@
             <tr v-for="r in list" :key="r.id">
               <td>{{ formatTime(r.createdAt) }}</td>
               <td><span class="src-tag">{{ sourceLabel(r.source) }}</span></td>
-              <td class="sched">{{ r.scheduleLabel || '-' }}</td>
               <td>{{ r.groupName || '全部' }}</td>
               <td>{{ r.totalCount }}</td>
               <td class="ok">{{ r.okCount }}</td>
-              <td class="warn">{{ r.warnCount }}</td>
               <td class="off">{{ r.offlineCount }}</td>
-              <td><span v-if="r.aiSummary" class="ai-badge" title="已生成 AI 结论">AI</span><span v-else class="ai-badge empty">—</span></td>
               <td class="actions">
                 <button type="button" class="link-btn" @click="openDetail(r.id)">明细</button>
                 <button type="button" class="link-btn" :disabled="pdfExporting" @click="exportPdfFromList(r.id)">导出PDF</button>
               </td>
             </tr>
-            <tr v-if="!list.length"><td colspan="10" class="empty">暂无记录；手动巡检或等待定时任务生成</td></tr>
+            <tr v-if="!list.length"><td colspan="7" class="empty">暂无记录；手动巡检或等待定时任务生成</td></tr>
           </tbody>
         </table>
       </div>
@@ -244,12 +231,11 @@ function formatRunDone(data) {
   const id = data.id
   const n = data.totalCount
   const ok = data.okCount
-  const warn = data.warnCount
   const off = data.offlineCount
   const parts = [`巡检已完成，报告 ID ${id}`]
   if (n != null) parts.push(`共 ${n} 台`)
-  if (ok != null || warn != null || off != null) {
-    parts.push(`正常 ${ok ?? '-'} / 延迟高 ${warn ?? '-'} / 离线 ${off ?? '-'}`)
+  if (ok != null || off != null) {
+    parts.push(`正常 ${ok ?? '-'} / 离线 ${off ?? '-'}`)
   }
   return parts.join('，')
 }
@@ -411,11 +397,6 @@ watch(() => route.query.tab, (t) => {
 .filter-select { padding: 0.4rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; min-width: 160px; }
 .ai-run-label { font-size: 0.8125rem; color: #475569; display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; user-select: none; }
 .ai-run-label input { cursor: pointer; }
-.ai-badge {
-  display: inline-block; font-size: 0.65rem; font-weight: 700; padding: 0.12rem 0.4rem; border-radius: 4px;
-  background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: #fff;
-}
-.ai-badge.empty { background: #f1f5f9; color: #94a3b8; font-weight: 500; }
 .ai-inspection-block {
   margin-bottom: 1rem; padding: 0.85rem 1rem; background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px;
 }
@@ -458,9 +439,7 @@ button.primary.small:hover:not(:disabled) {
 .last-report-table tbody tr:last-child td { border-bottom: none; }
 
 .src-tag { font-size: 0.75rem; background: #e0e7ff; color: #3730a3; padding: 0.15rem 0.45rem; border-radius: 4px; }
-.sched { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ok { color: #15803d; font-weight: 600; }
-.warn { color: #b45309; font-weight: 600; }
 .off { color: #b91c1c; font-weight: 600; }
 .actions { white-space: nowrap; }
 .link-btn { background: none; border: none; color: #2563eb; cursor: pointer; font-size: 0.8125rem; padding: 0 0.35rem; }
