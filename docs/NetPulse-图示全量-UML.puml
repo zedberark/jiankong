@@ -20,7 +20,7 @@ rectangle "表现层" #dbeafe {
   [Vue 3 + Vue Router + Vite\nAxios · xterm.js · ECharts] as FE
 }
 rectangle "业务层" #dcfce7 {
-  [Spring Boot 服务端\nController → Service → Repository] as BE
+  [Spring Boot 服务端\n控制器 → 服务层 → 数据访问层] as BE
 }
 database "MySQL\n（业务与权限数据）" as MY #fef3c7
 database "Redis\n（指标与 SNMP 缓存）" as RD #fecaca
@@ -168,8 +168,16 @@ entity "alert_template" as at {
 entity "inspection_report" as ir {
   * id : bigint <<PK>>
   --
-  source : varchar
+  created_at : datetime
+  finished_at : datetime
   group_name : varchar
+  total_count : int
+  ok_count : int
+  warn_count : int
+  offline_count : int
+  duration_ms : bigint
+  source : varchar
+  schedule_label : varchar
   ai_summary : longtext
 }
 
@@ -178,6 +186,9 @@ entity "inspection_item" as it {
   --
   report_id : bigint <<FK>>
   device_id : bigint
+  device_name : varchar
+  ip : varchar
+  device_type : varchar
   rtt_ms : bigint
   status : varchar
 }
@@ -209,6 +220,7 @@ entity "ai_chat_session" as cs {
   --
   username : varchar
   title : varchar
+  system_context : text
 }
 
 entity "ai_chat_message" as cm {
@@ -231,7 +243,8 @@ cs ||--o{ cm
 
 note bottom of cm
   **约束**：user_role 为用户—角色 M:N；alert_rule.device_id 可空；
-  audit_log 无物理 FK；alert_template 无外键；与 Flyway / JPA 一致。
+  audit_log 无物理 FK；alert_template 无外键；
+  inspection_item.device_id 与 device 无库级 FK（逻辑关联）；与 JPA 实体一致。
 end note
 @enduml
 

@@ -187,6 +187,28 @@ flowchart LR
 
 ---
 
+## 7 系统巡检（探测汇总与可选 AI 结论）
+
+与 `InspectionService`、`InspectionScheduleService`、`InspectionController` 及实体 `inspection_report` / `inspection_item` 一致；探测与落库在应用进程内完成。
+
+```mermaid
+flowchart TD
+    A[触发：用户手动或 Spring 定时任务] --> B{入口}
+    B -->|手动| C[POST /api/inspection/run]
+    B -->|定时| D[InspectionScheduleService\n整点/日报/周报]
+    C --> E[InspectionService\n并发 ICMP/TCP 探测]
+    D --> E
+    E --> F[按设备写入 inspection_item\n汇总 ok/warn/offline]
+    F --> G[保存 inspection_report]
+    G --> H{需要 AI 结论?\n手动勾选或定时 ai-enabled}
+    H -->|是| I[InspectionService.generateAiSummary\n经 AiChatService 调大模型 API]
+    H -->|否| J[结束]
+    I --> K[更新 ai_summary 字段]
+    K --> J
+```
+
+---
+
 ## 导出说明
 
 1. 打开 https://mermaid.live  

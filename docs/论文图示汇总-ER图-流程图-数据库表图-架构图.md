@@ -19,7 +19,7 @@ flowchart TB
     end
 
     subgraph 业务层["业务层（后端）"]
-        BE[Spring Boot\nController → Service → Repository\n设备管理 · 状态监测 · 指标采集 · 告警\nWeb 终端 · 配置备份 · 审计 · 用户与权限\n系统配置 · AI 助手 · 批量命令\n定时任务：Ping / SNMP 采集 / 告警评估]
+        BE[Spring Boot\n控制器 → 服务层 → 数据访问层\n设备管理 · 状态监测 · 指标采集 · 告警\nWeb 终端 · 配置备份 · 审计 · 用户与权限\n系统配置 · AI 助手 · 批量命令\n定时任务：Ping / SNMP 采集 / 告警评估]
     end
 
     subgraph 数据与外部["数据层 / 外部系统"]
@@ -36,6 +36,8 @@ flowchart TB
     BE --> Influx
     BE --> EXT
 ```
+
+> **说明**：当前实现为 **REST + WebSocket**，持久化使用 MySQL / Redis / InfluxDB；异步任务由 Spring `@Scheduled` / `@Async` 等完成。
 
 ---
 
@@ -160,14 +162,26 @@ erDiagram
     }
     inspection_report {
         bigint id PK
+        datetime created_at
+        datetime finished_at
         varchar source
+        varchar schedule_label
         varchar group_name
+        int total_count
+        int ok_count
+        int warn_count
+        int offline_count
+        bigint duration_ms
         longtext ai_summary
     }
     inspection_item {
         bigint id PK
         bigint report_id FK
         bigint device_id
+        varchar device_name
+        varchar ip
+        varchar device_type
+        bigint rtt_ms
         varchar status
     }
     sys_user ||--o{ user_role : ""
@@ -327,8 +341,8 @@ flowchart TB
         A2["alert_history\n────────\nid PK\nrule_id FK, device_id FK\nstatus, start/end_time"]
     end
     subgraph ins["系统巡检表"]
-        I1["inspection_report\n────────\nid PK\nsource, schedule_label\ngroup_name, counts\nai_summary"]
-        I2["inspection_item\n────────\nid PK\nreport_id FK\ndevice_id, rtt_ms, status"]
+        I1["inspection_report\n────────\nid PK\ncreated_at, finished_at\nsource, schedule_label\ngroup_name, counts\nduration_ms, ai_summary"]
+        I2["inspection_item\n────────\nid PK\nreport_id FK\ndevice_id, device_name\nip, rtt_ms, status"]
     end
 ```
 
@@ -398,7 +412,22 @@ flowchart TD
     I --> N[告警恢复时\n更新 history status=resolved\nend_time]
 ```
 
-### 5.4 Web SSH 连接与数据转发流程
+### 5.4 系统巡检流程（探测与可选 AI）
+
+```mermaid
+flowchart TD
+    A[手动 POST /inspection/run\n或定时 InspectionScheduleService] --> B[InspectionService 并发探测]
+    B --> C[写入 inspection_item\n汇总 inspection_report]
+    C --> D{需要 AI 结论?}
+    D -->|是| E[InspectionService.generateAiSummary]
+    D -->|否| F[结束]
+    E --> G[更新 ai_summary]
+    G --> F
+```
+
+> 与 `论文-流程图-Mermaid合集.md` 第 **7** 节一致。
+
+### 5.5 Web SSH 连接与数据转发流程
 
 ```mermaid
 flowchart TD
@@ -416,7 +445,7 @@ flowchart TD
     J --> K
 ```
 
-### 5.5 实时指标数据流
+### 5.6 实时指标数据流
 
 ```mermaid
 flowchart LR
@@ -463,6 +492,7 @@ flowchart LR
         Col[指标采集]
         Alt[告警管理]
         Web[Web 终端]
+        Ins[系统巡检]
         Oth[备份/审计/用户/配置/AI]
     end
 
@@ -480,6 +510,8 @@ flowchart LR
     Alt --> MySQL
     Alt --> Ext
     Web --> Ext
+    Ins --> MySQL
+    Ins --> Ext
     Oth --> MySQL
 ```
 

@@ -1,6 +1,6 @@
 # NetPulse 全局 E-R 图（含属性）
 
-本文档提供**包含属性**的全局 E-R 图，与当前后端实际使用的表一致（已剔除已删除表 monitor_item、webssh_session、notification_log、user_menu 等）。  
+本文档提供**包含属性**的全局 E-R 图，与当前后端 **JPA 实体 / MySQL 表**一致（已剔除历史表如 `monitor_item`、`webssh_session`、`notification_log`、`user_menu` 等）。  
 可在支持 Mermaid 的编辑器中预览，或使用 [mermaid.live](https://mermaid.live) 导出 PNG/SVG。
 
 ---
@@ -139,6 +139,7 @@ erDiagram
         bigint id
         varchar username
         varchar title
+        text system_context
         datetime create_time
     }
 
@@ -150,6 +151,32 @@ erDiagram
         datetime create_time
     }
 
+    inspection_report {
+        bigint id
+        datetime created_at
+        datetime finished_at
+        varchar group_name
+        int total_count
+        int ok_count
+        int warn_count
+        int offline_count
+        bigint duration_ms
+        varchar source
+        varchar schedule_label
+        longtext ai_summary
+    }
+
+    inspection_item {
+        bigint id
+        bigint report_id
+        bigint device_id
+        varchar device_name
+        varchar ip
+        varchar device_type
+        bigint rtt_ms
+        varchar status
+    }
+
     sys_user ||--o{ user_role : 拥有
     role ||--o{ user_role : 被分配
     role ||--o{ role_menu : 可访问菜单
@@ -158,6 +185,7 @@ erDiagram
     alert_rule ||--o{ alert_history : 产生
     sys_user ||--o{ config_backup : 创建备份
     ai_chat_session ||--o{ ai_chat_message : 包含消息
+    inspection_report ||--o{ inspection_item : "1:N CASCADE"
 ```
 
 ---
@@ -237,6 +265,19 @@ erDiagram
         bigint session_id FK
         text content
     }
+    inspection_report {
+        bigint id PK
+        datetime created_at
+        varchar source
+        int total_count
+        longtext ai_summary
+    }
+    inspection_item {
+        bigint id PK
+        bigint report_id FK
+        bigint device_id
+        varchar status
+    }
     sys_user ||--o{ user_role : ""
     role ||--o{ user_role : ""
     role ||--o{ role_menu : ""
@@ -245,6 +286,7 @@ erDiagram
     alert_rule ||--o{ alert_history : "rule_id"
     sys_user ||--o{ config_backup : "user_id"
     ai_chat_session ||--o{ ai_chat_message : "session_id"
+    inspection_report ||--o{ inspection_item : "report_id CASCADE"
 ```
 
 ---
@@ -264,8 +306,10 @@ erDiagram
 | audit_log | id | username, action, target_type, target_id, detail, ip, create_time | 独立表（逻辑上按 username 关联用户） |
 | system_config | id | config_key, config_value, remark, create_time, update_time | 独立表 |
 | config_backup | id | name, backup_type, summary, content, user_id, create_time | 多对一 sys_user（user_id） |
-| ai_chat_session | id | username, title, create_time | 与 ai_chat_message 一对多 |
+| ai_chat_session | id | username, title, system_context, create_time | 与 ai_chat_message 一对多 |
 | ai_chat_message | id | session_id, role, content, create_time | 多对一 ai_chat_session |
+| inspection_report | id | created_at, finished_at, group_name, total/ok/warn/offline_count, duration_ms, source, schedule_label, ai_summary | 与 inspection_item 一对多（级联删除） |
+| inspection_item | id | report_id, device_id, device_name, ip, device_type, rtt_ms, status | 多对一 inspection_report；device_id 与 device 逻辑关联 |
 
 ---
 

@@ -1,6 +1,6 @@
 # NetPulse 毕业设计 — 后端类图（Mermaid）
 
-与当前 `NetPulse` 工程 **Spring Boot 分层**一致：Controller（表现）→ Service（业务）→ Repository（持久）→ Entity（实体）。  
+与当前 `NetPulse` 工程 **Spring Boot 分层**一致：控制器（表现层）→ 服务层（业务）→ 数据访问层（持久）→ 实体。  
 将代码块复制到 [mermaid.live](https://mermaid.live) 可导出 **PNG/SVG** 插入 Word。
 
 ---
@@ -247,6 +247,8 @@ classDiagram
     class ConfigBackup
     class AiChatSession
     class AiChatMessage
+    class InspectionReport
+    class InspectionItem
     SysUser "1" --> "*" UserRole
     Role "1" --> "*" UserRole
     Role "1" --> "*" RoleMenu
@@ -255,11 +257,48 @@ classDiagram
     AlertRule "1" --> "*" AlertHistory
     SysUser "1" --> "*" ConfigBackup
     AiChatSession "1" --> "*" AiChatMessage
+    InspectionReport "1" --> "*" InspectionItem : CASCADE
 ```
 
 ---
 
-## 7 跨模块依赖示例（AiChatService → DeviceService）
+## 7 系统巡检模块核心类
+
+```mermaid
+classDiagram
+    class InspectionController {
+        -InspectionService inspectionService
+        -AuditService auditService
+        +run / reports 分页 / 明细
+    }
+    class InspectionService {
+        -InspectionReportRepository reportRepo
+        -DeviceRepository deviceRepository
+        -MonitorService monitorService
+        +runInspection 探测并落库
+        +generateAiSummary 大模型写结论
+    }
+    class InspectionScheduleService {
+        -InspectionService inspectionService
+        +@Scheduled 定时整点/日报/周报
+    }
+    class InspectionReportRepository {
+        <<interface>>
+    }
+    class InspectionReport
+    class InspectionItem
+    InspectionController --> InspectionService
+    InspectionService --> InspectionReportRepository
+    InspectionReportRepository ..> InspectionReport
+    InspectionReport "1" --> "*" InspectionItem
+    InspectionScheduleService --> InspectionService : runInspection\ngenerateAiSummary
+```
+
+**说明**：AI 结论由 `InspectionService.generateAiSummary` 实现（内部调用 `AiChatService` 等），与 `AiChatController` 的 `/ai/inspection-summary` 复用同一套逻辑；探测与 `MonitorService` 状态判定一致。
+
+---
+
+## 8 跨模块依赖示例（AiChatService → DeviceService）
 
 ```mermaid
 classDiagram

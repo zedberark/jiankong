@@ -96,16 +96,26 @@ erDiagram
     inspection_report {
         bigint id PK
         datetime created_at
-        varchar source
+        datetime finished_at
         varchar group_name
+        int total_count
+        int ok_count
+        int warn_count
+        int offline_count
+        bigint duration_ms
+        varchar source
+        varchar schedule_label
         longtext ai_summary
     }
     inspection_item {
         bigint id PK
         bigint report_id FK
         bigint device_id
-        varchar status
+        varchar device_name
+        varchar ip
+        varchar device_type
         bigint rtt_ms
+        varchar status
     }
     inspection_report ||--o{ inspection_item : "1:N ON DELETE CASCADE"
 ```
@@ -143,6 +153,7 @@ erDiagram
         bigint id PK
         varchar username
         varchar title
+        text system_context
     }
     ai_chat_message {
         bigint id PK

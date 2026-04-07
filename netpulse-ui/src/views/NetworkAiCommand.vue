@@ -242,13 +242,36 @@ function selectSingleDevice(deviceId, event) {
   selectedDeviceId.value = deviceId
 }
 
-function buildAiPrompt() {
+function buildAiPrompt(strictRetry = false, badOutput = '') {
   const vendorText = { huawei: '华为（Huawei）', cisco: '思科（Cisco）', h3c: '华三（H3C）', ruijie: '锐捷（Ruijie）', other: '通用厂商' }[
     vendor.value
   ]
   const typeText = { router: '路由器', switch: '三层交换机', firewall: '防火墙', other: '其他网络设备' }[deviceType.value]
   const featureText = features.value.length ? `涉及功能：${features.value.join('、')}。` : ''
-  return `你是一名资深网络工程师，请为${vendorText}的${typeText}生成配置命令（CLI），满足以下需求：\n${requirement.value}\n${featureText}\n要求：\n1. 只输出可直接在设备上执行的配置命令，不要解释文字。\n2. 按合理顺序排列，必要时分段加空行。`
+  const vendorGuard = {
+    huawei: '厂商限定：仅使用华为VRP风格命令；禁止出现 Cisco IOS/H3C/锐捷 特有命令。',
+    cisco: '厂商限定：仅使用 Cisco IOS 风格命令；禁止出现华为/H3C/锐捷 特有命令。',
+    h3c: '厂商限定：仅使用 H3C Comware 风格命令；禁止出现华为/Cisco/锐捷 特有命令。',
+    ruijie: '厂商限定：仅使用锐捷网络设备 CLI 风格命令；禁止出现华为/H3C/Cisco 特有命令。',
+    other: '厂商限定：输出通用CLI步骤，并尽量避免厂商私有命令。'
+  }[vendor.value]
+  const retryHint = strictRetry
+    ? `\n你上一次输出混入了非目标厂商语法，必须修正。错误示例（不要重复）：\n${badOutput}\n`
+    : ''
+  const completeness = {
+    cisco:
+      '【完整性—思科】三层 VLAN 场景必须包含：conf t →（三层交换机）ip routing → 逐个 vlan <id> / name → 逐个 interface Vlan<id> 配 ip address 与 no shutdown → end。禁止只输出 interface Vlan 而无 vlan 创建段。',
+    huawei:
+      '【完整性—华为】三层 VLAN 场景必须包含：system-view → vlan batch 或逐条 vlan → 逐个 interface Vlanif<id> 配 ip address → quit；接口需 undo shutdown（如适用）。禁止只给 Vlanif 而无 vlan 声明。',
+    h3c:
+      '【完整性—华三】三层 VLAN 场景必须包含：system-view → 创建 vlan → 逐个 interface Vlan-interface<id> 配 ip address → quit。命令须为 Comware 风格。',
+    ruijie:
+      '【完整性—锐捷】须使用锐捷 CLI 习惯（与 Cisco 类似时常用 conf t、vlan、interface Vlan），给出从进入配置到各 VLAN 网关就绪的完整步骤，禁止混入华为 Vlanif/vlan batch 语法。',
+    other:
+      '【完整性】凡涉及多 VLAN/三层网关，须逐步写全：VLAN 创建、三层接口、IP、接口 up，勿只给片段。'
+  }[vendor.value]
+
+  return `你是一名资深网络工程师，请为${vendorText}的${typeText}生成配置命令（CLI），满足以下需求：\n${requirement.value}\n${featureText}\n${vendorGuard}\n${completeness}${retryHint}\n要求：\n1. 只输出可直接在设备上执行的配置命令，不要解释文字。\n2. 按合理顺序排列，必要时分段加空行；涉及多个 VLAN 时每个 VLAN 写完整一段。\n3. 禁止输出「不完整片段」（例如仅有 interface 而无前置 vlan 创建），除非用户明确只要改某一接口。\n4. 如果无法确认某条命令在该厂商下的准确写法，请用以 # 开头的注释占位，不要改用其他厂商语法。`
 }
 
 function buildFeatureTemplate(v, t, feature) {
@@ -321,23 +344,51 @@ function buildFeatureTemplate(v, t, feature) {
   return ''
 }
 
-function generate() {
+function hasVendorMismatch(output, selectedVendor) {
+  const t = String(output || '')
+  if (!t.trim()) return false
+  if (selectedVendor === 'cisco') {
+    // 思科场景下常见的华为/H3C风格关键字
+    return /(Vlanif|vlan\s+batch|\bundo\b|traffic-filter|port\s+link-type|port\s+default\s+vlan)/i.test(t)
+  }
+  if (selectedVendor === 'huawei') {
+    // 华为场景下常见的 Cisco 风格关键字
+    return /(conf\s+t|configure\s+terminal|switchport|ip\s+access-list|spanning-tree\s+mst)/i.test(t)
+  }
+  if (selectedVendor === 'ruijie') {
+    // 锐捷先按“不得混华为/Cisco 典型命令”兜底
+    return /(Vlanif|vlan\s+batch|\bundo\b|conf\s+t|switchport)/i.test(t)
+  }
+  return false
+}
+
+async function generate() {
   const text = requirement.value.trim()
   if (!text || generating.value) return
   generating.value = true
-  const prompt = buildAiPrompt()
-  // 复用 AI 运维助手的 chat 接口，走一次性对话（不绑定会话）
-  aiChat(undefined, prompt, { transient: true })
-    .then((r) => {
-      const data = r.data || {}
-      generated.value = data.reply ?? ''
-    })
-    .catch((e) => {
-      alert(e.response?.data?.message || e.message || 'AI 生成失败，请检查 AI 配置')
-    })
-    .finally(() => {
-      generating.value = false
-    })
+  try {
+    // 复用 AI 运维助手的 chat 接口，走一次性对话（不绑定会话）
+    const firstPrompt = buildAiPrompt()
+    const firstResp = await aiChat(undefined, firstPrompt, { transient: true })
+    let reply = firstResp?.data?.reply ?? ''
+
+    // 若检测到厂商语法串台，自动强约束重试一次
+    if (hasVendorMismatch(reply, vendor.value)) {
+      const retryPrompt = buildAiPrompt(true, reply)
+      const retryResp = await aiChat(undefined, retryPrompt, { transient: true })
+      const retryReply = retryResp?.data?.reply ?? ''
+      if (retryReply.trim()) reply = retryReply
+    }
+
+    generated.value = reply
+    if (hasVendorMismatch(reply, vendor.value)) {
+      alert('检测到命令可能混入了其他厂商语法。建议补充更具体需求（接口名、协议、目标网段）后重试。')
+    }
+  } catch (e) {
+    alert(e.response?.data?.message || e.message || 'AI 生成失败，请检查 AI 配置')
+  } finally {
+    generating.value = false
+  }
 }
 
 function copyToClipboard() {
