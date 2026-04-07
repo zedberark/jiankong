@@ -1,0 +1,28 @@
+# NetPulse 用 Telegraf 配置示例（使用系统默认主机名）
+# 使用前：复制到 192.168.1.160 的 /etc/telegraf/telegraf.conf，按需改 token，然后 systemctl restart telegraf
+# 使用主机名时，请在 NetPulse 设备管理里把该设备的「名称」设为与主机名一致（如 zabbix-server-160），以便匹配 InfluxDB 的 host。
+
+# 使用系统默认主机名（不配置 [global_tags]，Telegraf 自动取 hostname，如 zabbix-server-160）
+
+[agent]
+  interval = "10s"
+  round_interval = true
+  metric_batch_size = 1000
+  metric_buffer_limit = 10000
+  flush_interval = "10s"
+
+[[outputs.influxdb_v2]]
+  urls = ["http://192.168.1.160:8086"]
+  token = "9WngKw69ECXravkl4jeiHzh_-cxiuD9k0X5u0DP18Bvff7PXJiE1AbZjkVbUKhAwqF17nVOuA7vq2CgpRSU3nA=="
+  organization = "nebula_org"
+  bucket = "device_metrics"
+
+[[inputs.cpu]]
+  percpu = true
+  totalcpu = true
+
+[[inputs.mem]]
+
+[[inputs.disk]]
+
+[[inputs.net]]

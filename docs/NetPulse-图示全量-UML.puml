@@ -1,0 +1,265 @@
+' =============================================================================
+' NetPulse 毕业设计论文 — 图示源文件（PlantUML）
+' 用途：第 3～4 章「系统设计 / 数据库设计」插图；可改图号后插入 Word
+' 渲染：① VS Code + PlantUML 插件 ② https://www.plantuml.com/plantuml/uml
+' 导出：预览窗口导出 PNG/SVG（建议 SVG 插入 Word 更清晰）
+' 对应 draw.io：docs/NetPulse-图示全量.drawio（页签 01～06）
+' =============================================================================
+
+@startuml NP_图3-1_系统总体架构
+!theme plain
+skinparam shadowing false
+skinparam ArrowThickness 1.2
+skinparam defaultFontSize 11
+title 图 3-1 系统总体架构图（B/S 前后端分离）
+
+rectangle "用户层" #f1f5f9 {
+  [浏览器客户端\n（管理员 / 运维 / 只读）] as U
+}
+rectangle "表现层" #dbeafe {
+  [Vue 3 + Vue Router + Vite\nAxios · xterm.js · ECharts] as FE
+}
+rectangle "业务层" #dcfce7 {
+  [Spring Boot 服务端\nController → Service → Repository] as BE
+}
+database "MySQL\n（业务与权限数据）" as MY #fef3c7
+database "Redis\n（指标与 SNMP 缓存）" as RD #fecaca
+database "InfluxDB\n（时序与 Telegraf）" as IF #cffafe
+cloud "外部系统\n（被管设备 SNMP/SSH/Telnet · 邮件 · 大模型 API · Telegraf）" as EXT #ede9fe
+
+U -down-> FE : 访问
+FE -down-> BE : HTTP/HTTPS（REST）\nWebSocket（终端）
+BE -down-> MY
+BE -down-> RD
+BE -down-> IF
+BE -down-> EXT
+
+note right of BE
+  **说明**：与论文「总体设计」一节一致；\n终端类功能经 WebSocket 与后端长连接。
+end note
+@enduml
+
+@startuml NP_图3-2_功能模块架构
+!theme plain
+skinparam shadowing false
+title 图 3-2 系统功能模块架构图
+
+package "核心业务" #E8F5E9 {
+  rectangle "设备管理\n（CRUD、分组、Ping、凭证）" as M1
+  rectangle "状态监测\n（定时探测、状态回写）" as M2
+  rectangle "指标采集\n（SNMP/SSH、Influx、Redis）" as M3
+  rectangle "告警管理\n（规则、历史、通知）" as M4
+  rectangle "Web 终端\n（SSH/Telnet）" as M5
+}
+
+package "支撑功能" #FFF8E1 {
+  rectangle "配置备份与恢复" as S1
+  rectangle "操作审计" as S2
+  rectangle "用户与权限" as S3
+  rectangle "系统与 API 配置" as S4
+  rectangle "AI 运维助手" as S5
+  rectangle "仪表盘 · 拓扑 · 巡检 · 批量命令" as S6
+}
+
+note bottom of M1
+  **说明**：与前端侧栏菜单分组一致；「系统巡检 / 巡检报告」归入展示与扩展（S6）。
+end note
+@enduml
+
+@startuml NP_图3-3_后端分层类图
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+title 图 3-3 后端分层结构及依赖关系示意图（以设备管理为例）
+
+package "org.ops.netpulse.controller" #dae8fc {
+  class DeviceController <<REST>>
+  class AlertController
+  class AuthController
+}
+
+package "org.ops.netpulse.service" #d5e8d4 {
+  class DeviceService <<Service>>
+  class MonitorService
+  class AlertService
+}
+
+package "org.ops.netpulse.repository" #fff2cc {
+  interface DeviceRepository <<JpaRepository>>
+  interface AlertRuleRepository
+}
+
+package "org.ops.netpulse.entity" #e1d5e7 {
+  class Device <<Entity>>
+  class AlertRule
+}
+
+DeviceController --> DeviceService : 依赖注入
+DeviceService --> DeviceRepository
+DeviceService --> MonitorService : 调用探测
+DeviceRepository ..> Device : 持久化映射
+
+note bottom of DeviceController
+  其他 Controller（如巡检、AI、指标）同样遵循该分层；\n审计等横切能力可通过 AOP 或显式注入 AuditService。
+end note
+@enduml
+
+@startuml NP_图4-1_全局ER图
+!theme plain
+title 图 4-1 数据库全局 E-R 图（主要实体、属性与联系）
+
+entity "sys_user" as su {
+  * id : bigint <<PK>>
+  --
+  username : varchar
+  password : varchar
+  enabled : boolean
+}
+
+entity "role" as ro {
+  * id : bigint <<PK>>
+  --
+  code : varchar
+  name : varchar
+}
+
+entity "user_role" as ur {
+  * user_id : bigint <<FK>>
+  * role_id : bigint <<FK>>
+}
+
+entity "role_menu" as rm {
+  * id : bigint <<PK>>
+  --
+  role_id : bigint <<FK>>
+  menu_code : varchar
+}
+
+entity "device" as dv {
+  * id : bigint <<PK>>
+  --
+  name : varchar
+  ip : varchar
+  status : varchar
+  deleted : boolean
+}
+
+entity "alert_rule" as ar {
+  * id : bigint <<PK>>
+  --
+  device_id : bigint <<FK>>
+  metric_key : varchar
+}
+
+entity "alert_history" as ah {
+  * id : bigint <<PK>>
+  --
+  rule_id : bigint <<FK>>
+  device_id : bigint <<FK>>
+}
+
+entity "alert_template" as at {
+  * id : bigint <<PK>>
+  --
+  name : varchar
+  metric_key : varchar
+}
+
+entity "inspection_report" as ir {
+  * id : bigint <<PK>>
+  --
+  source : varchar
+  group_name : varchar
+  ai_summary : longtext
+}
+
+entity "inspection_item" as it {
+  * id : bigint <<PK>>
+  --
+  report_id : bigint <<FK>>
+  device_id : bigint
+  rtt_ms : bigint
+  status : varchar
+}
+
+entity "config_backup" as cb {
+  * id : bigint <<PK>>
+  --
+  user_id : bigint <<FK>>
+  backup_type : varchar
+}
+
+entity "system_config" as sc {
+  * id : bigint <<PK>>
+  --
+  config_key : varchar
+  config_value : text
+}
+
+entity "audit_log" as al {
+  * id : bigint <<PK>>
+  --
+  username : varchar
+  action : varchar
+  target_type : varchar
+}
+
+entity "ai_chat_session" as cs {
+  * id : bigint <<PK>>
+  --
+  username : varchar
+  title : varchar
+}
+
+entity "ai_chat_message" as cm {
+  * id : bigint <<PK>>
+  --
+  session_id : bigint <<FK>>
+  role : varchar
+  content : text
+}
+
+su ||--o{ ur
+ro ||--o{ ur
+ro ||--o{ rm
+dv ||--o{ ar
+dv ||--o{ ah
+ar ||--o{ ah
+su ||--o{ cb
+ir ||--o{ it
+cs ||--o{ cm
+
+note bottom of cm
+  **约束**：user_role 为用户—角色 M:N；alert_rule.device_id 可空；
+  audit_log 无物理 FK；alert_template 无外键；与 Flyway / JPA 一致。
+end note
+@enduml
+
+@startuml NP_图3-4_登录与权限流程
+!theme plain
+title 图 3-4 用户登录与路由权限校验活动图（简图）
+start
+:用户访问前端单页应用;
+if (localStorage 中存在\n有效登录 token ?) then (是)
+else (否)
+  :进入登录页，提交用户名与密码;
+  :POST /api/auth/login;
+  if (服务端校验通过 ?) then (否)
+    :返回 401，提示错误;
+    stop
+  endif
+  :查询 user_role、role、role_menu；\n签发 JWT，返回 allowedMenus;
+  :写入本地存储，跳转首页或 from 参数页;
+endif
+if (目标路由需要 menuCode\n且 allowedMenus 包含该项 ?) then (否)
+  :重定向至 /dashboard;
+else (是)
+  :渲染目标业务页面;
+endif
+:通过侧栏进入各功能模块\n（仪表盘、设备、告警与巡检、运维、系统等）;
+stop
+
+note right
+  **说明**：与「详细设计」中安全与权限小节对应；\n更细的泳道图见 draw.io **06-系统功能全流程**。
+end note
+@enduml

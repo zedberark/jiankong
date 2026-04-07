@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="npm-a" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22d3ee"/>
+      <stop offset="0.45" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="npm-shine" x1="8" y1="4" x2="24" y2="16" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="9" fill="url(#npm-a)"/>
+  <path fill="url(#npm-shine)" d="M4 4h24v14c-8 2-16 2-24 0V4z"/>
+  <g fill="#fff" opacity="0.96">
+    <rect x="6.5" y="19" width="5" height="9" rx="1.5"/>
+    <rect x="13.5" y="13" width="5" height="15" rx="1.5"/>
+    <rect x="20.5" y="7" width="5" height="21" rx="1.5"/>
+  </g>
+</svg>

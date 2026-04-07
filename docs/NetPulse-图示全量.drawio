@@ -1,0 +1,495 @@
+<mxfile host="app.diagrams.net" modified="2026-04-07T12:00:00.000Z" agent="NetPulse-thesis" version="22.1.0" type="device">
+<diagram id="arch-overall" name="1-总体架构">
+    <mxGraphModel dx="1200" dy="820" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="780" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t0" value="NetPulse — 系统总体架构（前后端分离 B/S）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="220" y="12" width="640" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="lane1" value="用户层" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="1000" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="u1" value="浏览器&#xa;管理员 / 运维人员 / 只读用户" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e2e8f0;strokeColor=#475569;fontStyle=1;fontSize=11;" vertex="1" parent="lane1">
+          <mxGeometry x="380" y="36" width="240" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="lane2" value="表现层（前端）" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="40" y="156" width="1000" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="fe1" value="Vue 3 + Vue Router + Vite&#xa;Axios · xterm.js · ECharts&#xa;登录 / 仪表盘 / 设备列表 / 拓扑 / 实时指标&#xa;Web 终端 / 批量命令 / 告警 / 配置备份&#xa;操作审计 / 用户管理 / 系统设置 / AI 助手" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="lane2">
+          <mxGeometry x="220" y="36" width="560" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="lane3" value="业务层（后端）" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="40" y="304" width="1000" height="152" as="geometry" />
+        </mxCell>
+        <mxCell id="be1" value="Spring Boot&#xa;Controller → Service → Repository&#xa;设备管理 · 状态监测 · 指标采集 · 告警&#xa;Web 终端 · 配置备份 · 审计 · 用户与权限&#xa;系统配置 · AI 助手 · 批量命令&#xa;定时任务：Ping / SNMP 采集 / 告警评估" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;align=left;spacingLeft=10;verticalAlign=top;spacingTop=6;" vertex="1" parent="lane3">
+          <mxGeometry x="180" y="36" width="640" height="108" as="geometry" />
+        </mxCell>
+        <mxCell id="lane4" value="数据层 / 外部系统" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#8b5cf6;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="40" y="472" width="1000" height="128" as="geometry" />
+        </mxCell>
+        <mxCell id="db1" value="MySQL&#xa;设备 / 告警 / 用户&#xa;审计 / 配置等" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="lane4">
+          <mxGeometry x="48" y="36" width="150" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="db2" value="Redis&#xa;设备指标&#xa;SNMP 缓存" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#fecaca;strokeColor=#dc2626;fontSize=10;" vertex="1" parent="lane4">
+          <mxGeometry x="230" y="36" width="150" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="db3" value="InfluxDB&#xa;状态时序&#xa;Telegraf 指标" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=12;fillColor=#cffafe;strokeColor=#0891b2;fontSize=10;" vertex="1" parent="lane4">
+          <mxGeometry x="412" y="36" width="150" height="84" as="geometry" />
+        </mxCell>
+        <mxCell id="ext1" value="外部系统&#xa;网络设备 SNMP / SSH / Telnet&#xa;邮件服务器 · 大模型 API · Telegraf" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="lane4">
+          <mxGeometry x="594" y="32" width="360" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="e_u_f" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#334155;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="u1" target="fe1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_f_b" value="HTTP（REST）&#xa;WebSocket（终端）" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#1d4ed8;fontSize=10;fontColor=#1e3a8a;labelBackgroundColor=#ffffff;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="fe1" target="be1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_m" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#15803d;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="be1" target="db1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_r" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#15803d;exitX=0.4;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="be1" target="db2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_i" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#15803d;exitX=0.55;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="be1" target="db3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_b_x" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#15803d;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="be1" target="ext1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="680" y="468" /><mxPoint x="774" y="468" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="note1" value="说明：表现层与业务层通过 REST API 与 WebSocket 交互；业务层访问关系型/缓存/时序库，并对接被管设备与第三方服务。" style="text;html=1;strokeColor=#94a3b8;fillColor=#f8fafc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="620" width="1000" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="arch-func" name="2-功能架构">
+    <mxGraphModel dx="1200" dy="820" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ft0" value="NetPulse — 系统功能架构（按业务与支撑划分）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="220" y="12" width="640" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="froot" value="NetPulse&#xa;监控运维系统" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3a5f;strokeColor=#0f172a;fontColor=#ffffff;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="430" y="52" width="200" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="fcore" value="核心业务" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="40" y="140" width="500" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="fm1" value="设备管理&#xa;CRUD · 分组分页 · Ping&#xa;SSH / SNMP 配置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="fcore">
+          <mxGeometry x="24" y="44" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fm2" value="状态监测&#xa;定时可达性检测&#xa;状态回写 · 触发告警" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="fcore">
+          <mxGeometry x="260" y="44" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fm3" value="指标采集&#xa;SNMP / SSH 回退&#xa;Telegraf / InfluxDB · Redis 缓存" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="fcore">
+          <mxGeometry x="24" y="136" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fm4" value="告警管理&#xa;规则 · 阈值评估&#xa;历史 · 邮件通知" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="fcore">
+          <mxGeometry x="260" y="136" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fm5" value="Web 终端&#xa;浏览器 SSH / Telnet&#xa;保活 · 双向转发" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="fcore">
+          <mxGeometry x="142" y="228" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fsup" value="支撑功能" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;fontStyle=1;fontSize=12;startSize=28;" vertex="1" parent="1">
+          <mxGeometry x="560" y="140" width="500" height="360" as="geometry" />
+        </mxCell>
+        <mxCell id="fs1" value="配置备份&#xa;设备 / 规则 / 系统配置&#xa;JSON 备份与恢复" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="24" y="44" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fs2" value="操作审计&#xa;操作日志 · 条件查询" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="260" y="44" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fs3" value="用户与权限&#xa;用户 / 角色 / 菜单&#xa;登录与权限校验" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="24" y="136" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fs4" value="系统配置&#xa;键值对 · 时区 · API 密钥" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="260" y="136" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fs5" value="AI 助手&#xa;会话 · 设备上下文&#xa;大模型调用" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="24" y="228" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="fs6" value="展示与扩展&#xa;仪表盘 · 拓扑 · 批量命令&#xa;网络 AI 命令" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#d97706;fontSize=10;" vertex="1" parent="fsup">
+          <mxGeometry x="260" y="228" width="210" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="ef1" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#64748b;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="froot" target="fcore">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ef2" style="endArrow=block;html=1;strokeWidth=2;strokeColor=#64748b;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="froot" target="fsup">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fnote" value="说明：与论文「系统功能架构」一节一致；核心业务侧重设备与告警闭环，支撑功能保障可运维、可审计与可扩展。" style="text;html=1;strokeColor=#94a3b8;fillColor=#f8fafc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="1020" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+<diagram id="func-modules" name="03-功能模块（侧栏菜单）">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="720" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="NetPulse 监控运维系统 — 功能模块图（与侧栏菜单一致）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="16" width="680" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="root" value="NetPulse&#xa;监控运维系统" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e3a5f;strokeColor=#0f172a;fontColor=#ffffff;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="400" y="70" width="160" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="g1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="g1t" value="概览" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;fontColor=#1d4ed8;" vertex="1" parent="1">
+          <mxGeometry x="52" y="188" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g1c" value="· 首页仪表盘" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="52" y="212" width="160" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="g2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="280" y="180" width="200" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="g2t" value="设备管理" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;fontColor=#15803d;" vertex="1" parent="1">
+          <mxGeometry x="292" y="188" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g2c" value="· 设备管理&#xa;· 设备指标&#xa;· 设备拓扑图&#xa;· 告警通知" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="292" y="212" width="160" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="g3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="520" y="180" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="g3t" value="运维" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;fontColor=#b45309;" vertex="1" parent="1">
+          <mxGeometry x="532" y="188" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g3c" value="· Linux 运维控制台&#xa;· 网络设备运维控制台&#xa;· AI 运维助手" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="532" y="212" width="170" height="96" as="geometry" />
+        </mxCell>
+        <mxCell id="g4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f3ff;strokeColor=#8b5cf6;verticalAlign=top;align=left;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="760" y="180" width="200" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="g4t" value="系统" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;fontColor=#6d28d9;" vertex="1" parent="1">
+          <mxGeometry x="772" y="188" width="60" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="g4c" value="· 操作日志&#xa;· 配置备份&#xa;· 用户管理&#xa;· 系统设置" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=11;spacing=2;" vertex="1" parent="1">
+          <mxGeometry x="772" y="212" width="160" height="132" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" style="endArrow=block;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;strokeWidth=2;strokeColor=#64748b;" edge="1" parent="1" source="root" target="g1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" style="endArrow=block;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;strokeWidth=2;strokeColor=#64748b;" edge="1" parent="1" source="root" target="g2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" style="endArrow=block;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;strokeWidth=2;strokeColor=#64748b;" edge="1" parent="1" source="root" target="g3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" style="endArrow=block;html=1;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;strokeWidth=2;strokeColor=#64748b;" edge="1" parent="1" source="root" target="g4">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="560" y="150" /><mxPoint x="860" y="150" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="note" value="说明：与前端侧栏分组一致；Web SSH 从「设备管理」入口进入，属设备管理能力延伸。" style="text;html=1;strokeColor=#94a3b8;fillColor=#f8fafc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="40" y="400" width="920" height="44" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+<diagram id="class-layers" name="04-后端类图（分层）">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="NetPulse 后端类图示意（以设备管理为例：Controller → Service → Repository → Entity）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="20" width="720" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="layer1" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="70" width="880" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="l1t" value="控制层 controller" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="92" y="78" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="c1" value="DeviceController&#xa;/devices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="108" width="160" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="AlertController&#xa;/alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="300" y="108" width="140" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="AuthController&#xa;/auth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="460" y="108" width="130" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="c4" value="AiChatController&#xa;/ai" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="610" y="108" width="130" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="layer2" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="200" width="880" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="l2t" value="业务层 service" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="92" y="208" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" value="DeviceService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="240" width="140" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" value="MonitorService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="280" y="240" width="140" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" value="AlertService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="440" y="240" width="120" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" value="UserService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="580" y="240" width="110" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="s5" value="AiChatService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="710" y="240" width="120" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="layer3" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="350" width="880" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="l3t" value="持久层 repository（JpaRepository）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="92" y="358" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" value="DeviceRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="388" width="150" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="r2" value="AlertRuleRepository&#xa;AlertHistoryRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="290" y="388" width="180" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="r3" value="SysUserRepository&#xa;UserRoleRepository…" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="490" y="388" width="170" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="r4" value="AiChatSessionRepository&#xa;AiChatMessageRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="680" y="388" width="200" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="layer4" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;verticalAlign=top;align=left;spacingLeft=12;spacingTop=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="480" width="880" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="l4t" value="实体层 entity（@Table 映射 MySQL）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="92" y="488" width="300" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="Device" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="518" width="90" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="AlertRule&#xa;AlertHistory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="518" width="110" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="SysUser&#xa;Role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="360" y="518" width="90" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="AiChatSession&#xa;AiChatMessage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="470" y="518" width="130" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow1" edge="1" parent="1" source="c1" target="s1" style="endArrow=block;endFill=1;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" edge="1" parent="1" source="s1" target="r1" style="endArrow=block;endFill=1;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" edge="1" parent="1" source="r1" target="e1" style="endArrow=block;endFill=1;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrowS" edge="1" parent="1" source="s1" target="s2" style="endArrow=open;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;dashed=1;endFill=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="说明：实线箭头为「设备」纵向依赖链示意；各 Controller 实际还依赖 AuditService、部分直接注入 Repository 等，论文中可文字补充。" style="text;html=1;strokeColor=#999999;fillColor=#f5f5f5;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="600" width="880" height="48" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+<diagram id="er-global" name="05-数据库全局E-R关系">
+    <mxGraphModel dx="1100" dy="780" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1000" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="NetPulse 数据库 E-R 图（表间外键对应关系 · 用户/角色/菜单分表不合并）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=13;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="80" y="8" width="820" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="hint" value="读图：矩形=数据表；连线上标注「基数 + 外键字段名」。user_role 为 用户↔角色 多对多的中间表；role_menu 仅存「某角色可访问哪些 menu_code」，与 role 是两张表。" style="text;html=1;strokeColor=#93c5fd;fillColor=#eff6ff;align=left;verticalAlign=middle;rounded=1;fontSize=10;fontColor=#1e3a8a;" vertex="1" parent="1">
+          <mxGeometry x="24" y="38" width="920" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec1" value="一、用户 · 角色 · 菜单权限（4 张表，三处外键）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=11;fontColor=#1d4ed8;" vertex="1" parent="1">
+          <mxGeometry x="24" y="88" width="420" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t1" value="sys_user&#xa;【用户表】" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="118" width="128" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="t2" value="user_role&#xa;【中间表 M:N】&#xa;PK: user_id+role_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="220" y="112" width="150" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="t3" value="role&#xa;【角色表】&#xa;与菜单分表" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="430" y="118" width="120" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="t4" value="role_menu&#xa;【角色-菜单权限表】&#xa;FK: role_id&#xa;列: menu_code" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4f46e5;fontStyle=1;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="410" y="218" width="170" height="78" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_u_ur" value="1端 ── N端&#xa;FK: user_id → sys_user.id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#1d4ed8;fontSize=9;fontColor=#1e40af;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="t1" target="t2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ur_r" value="N端 ── 1端&#xa;FK: role_id → role.id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#1d4ed8;fontSize=9;fontColor=#1e40af;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="t2" target="t3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_r_rm" value="1端 ── N端&#xa;FK: role_id → role.id&#xa;（角色 与 菜单行 分表）" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#4f46e5;fontSize=9;fontColor=#312e81;labelBackgroundColor=#ffffff;entryX=0.5;entryY=0;exitX=0.5;exitY=1;" edge="1" parent="1" source="t3" target="t4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec2" value="二、设备 · 告警（外键：device_id / rule_id）" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=11;fontColor=#15803d;" vertex="1" parent="1">
+          <mxGeometry x="24" y="318" width="380" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t5" value="device&#xa;【设备表】" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="32" y="352" width="110" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="t6" value="alert_rule&#xa;【告警规则】&#xa;device_id 可空" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="190" y="340" width="130" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="t7" value="alert_history&#xa;【告警历史】" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="370" y="352" width="130" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="t8" value="alert_template&#xa;【告警模板】&#xa;无外键" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#7c3aed;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="190" y="430" width="130" height="58" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_d_ar" value="1:N FK device_id（可空）" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#15803d;fontSize=9;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="t5" target="t6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_d_ah" value="1:N FK device_id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#15803d;fontSize=9;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="t5" target="t7">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="300" y="378" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_ar_ah" value="1:N FK rule_id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#15803d;fontSize=9;labelBackgroundColor=#ffffff;entryX=0;entryY=0.5;exitX=1;exitY=0.5;" edge="1" parent="1" source="t6" target="t7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="sec3" value="三、系统 · 备份 · 审计 · AI" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=11;fontColor=#c2410c;" vertex="1" parent="1">
+          <mxGeometry x="560" y="88" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="t9" value="system_config&#xa;键值配置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#ea580c;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="118" width="130" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="t10" value="config_backup&#xa;FK user_id 可空" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#ea580c;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="188" width="130" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="t11" value="audit_log&#xa;无 user 表 FK" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffedd5;strokeColor=#ea580c;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="720" y="188" width="120" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="t12" value="ai_chat_session" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#6d28d9;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="560" y="288" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="t13" value="ai_chat_message&#xa;FK session_id" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#6d28d9;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="560" y="368" width="150" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_cb_u" value="N:1 可空&#xa;FK user_id → sys_user.id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#ea580c;dashed=1;dashPattern=5 4;fontSize=9;labelBackgroundColor=#fff7ed;entryX=1;entryY=0.5;exitX=0;exitY=0.5;" edge="1" parent="1" source="t10" target="t1">
+          <mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="520" y="214" /><mxPoint x="520" y="146" /></Array></mxGeometry>
+        </mxCell>
+        <mxCell id="e_cs_cm" value="1:N FK session_id" style="endArrow=block;endFill=1;html=1;strokeWidth=2;strokeColor=#6d28d9;fontSize=9;labelBackgroundColor=#ffffff;entryX=0.5;entryY=0;exitX=0.5;exitY=1;" edge="1" parent="1" source="t12" target="t13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note" value="对应关系小结：① 用户—角色 经 user_role 两列分别指向 sys_user 与 role；② 菜单权限在 role_menu，通过 role_id 指向 role，不是与角色混在一张表；③ alert_template 无指向他表的外键；④ audit_log 仅存 username 字符串，库中无指向 sys_user 的外键。" style="text;html=1;strokeColor=#cbd5e1;fillColor=#f8fafc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontColor=#334155;" vertex="1" parent="1">
+          <mxGeometry x="24" y="520" width="920" height="56" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+<diagram id="p0" name="06-系统功能全流程（登录与入口）">
+    <mxGraphModel dx="1100" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="920" pageHeight="1320" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="g0t" value="NetPulse 系统功能全流程图（含登录、权限与主要业务入口）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="120" y="8" width="680" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="g0lane1" value="一、访问与登录" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#2563eb;fontStyle=1;fontSize=12;startSize=26;" vertex="1" parent="1">
+          <mxGeometry x="40" y="44" width="840" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="g0s" value="开始" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;" vertex="1" parent="g0lane1">
+          <mxGeometry x="370" y="40" width="100" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a1" value="用户访问前端（Vue）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="g0lane1">
+          <mxGeometry x="340" y="92" width="160" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="g0d1" value="localStorage&#xa;有 token？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontStyle=1;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="330" y="148" width="180" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a2" value="跳转登录页 /login" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="g0lane1">
+          <mxGeometry x="100" y="158" width="150" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a3" value="输入用户名、密码" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="g0lane1">
+          <mxGeometry x="100" y="230" width="150" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a4" value="POST /api/auth/login" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontStyle=1;" vertex="1" parent="g0lane1">
+          <mxGeometry x="100" y="288" width="150" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="g0d2" value="密码&#xa;校验通过？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontStyle=1;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="85" y="340" width="180" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="g0e1" value="401 / 错误提示" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="40" y="348" width="100" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a5" value="查询 user_role、role、role_menu&#xa;签发 token；返回 allowedMenus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="520" y="158" width="220" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a6" value="前端存 netpulse_user&#xa;跳转 from 或 /dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="520" y="230" width="220" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="g0d3" value="后续请求&#xa;Authorization: Bearer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0284c7;fontSize=10;" vertex="1" parent="g0lane1">
+          <mxGeometry x="520" y="92" width="220" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="g0lane2" value="二、路由与权限" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;fontStyle=1;fontSize=12;startSize=26;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="840" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="g0d4" value="目标路由需 menuCode？&#xa;allowedMenus 含此项？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fef9c3;strokeColor=#ca8a04;fontStyle=1;fontSize=10;" vertex="1" parent="g0lane2">
+          <mxGeometry x="300" y="44" width="240" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a7" value="重定向 /dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#dc2626;fontSize=10;" vertex="1" parent="g0lane2">
+          <mxGeometry x="80" y="68" width="140" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g0a8" value="进入目标页面（渲染业务）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;fontStyle=1;" vertex="1" parent="g0lane2">
+          <mxGeometry x="580" y="68" width="200" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g0lane3" value="三、登录后主要功能入口（侧栏菜单，与实现一致）" style="swimlane;horizontal=0;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#8b5cf6;fontStyle=1;fontSize=12;startSize=30;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="840" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b1" value="概览&#xa;· 首页仪表盘" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="48" width="240" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b2" value="设备管理&#xa;· 设备列表 · 设备指标 · 设备拓扑图&#xa;告警与巡检&#xa;· 告警通知 · 系统巡检 · 巡检报告" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="120" width="360" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b3" value="运维&#xa;· Linux 运维控制台 · 网络设备运维控制台 · AI 运维助手" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="208" width="360" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b4" value="系统&#xa;· 操作日志 · 配置备份 · 用户管理 · 系统设置" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="288" width="360" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b5" value="Web SSH/Telnet&#xa;从设备列表进入 · WS /api/ws/ssh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#cffafe;strokeColor=#0891b2;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="420" y="120" width="380" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="g0b6" value="后台支撑（跨模块）&#xa;Monitor 定时采集 · 告警规则 · Influx/Redis/MySQL · 审计日志" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;strokeColor=#64748b;fontSize=10;align=left;spacingLeft=8;verticalAlign=top;spacingTop=6;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="368" width="768" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="g0note" value="详细子流程见本文件：页「1-登录与权限」～「5-实时指标数据流」" style="text;html=1;strokeColor=#94a3b8;fillColor=#f8fafc;align=center;rounded=1;fontSize=11;fontStyle=2;" vertex="1" parent="g0lane3">
+          <mxGeometry x="32" y="440" width="768" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="g0e" value="结束 / 持续使用" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fecaca;strokeColor=#dc2626;fontStyle=1;fontSize=11;" vertex="1" parent="g0lane3">
+          <mxGeometry x="360" y="492" width="160" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="g0x1" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0s" target="g0a1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x2" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a1" target="g0d1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x3" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;entryX=0.5;entryY=0;fontSize=10;fontStyle=1;" edge="1" parent="1" source="g0d1" target="g0a2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x4" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;fontStyle=1;" edge="1" parent="1" source="g0d1" target="g0d3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x5" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a2" target="g0a3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x6" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a3" target="g0a4"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x7" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a4" target="g0d2"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x8" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="g0d2" target="g0e1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x9" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;fontStyle=1;" edge="1" parent="1" source="g0d2" target="g0a5"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x10" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a5" target="g0a6"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x11" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0d3" target="g0d4"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="460" /><mxPoint x="420" y="460" /></Array></mxGeometry></mxCell>
+        <mxCell id="g0x12" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a6" target="g0d4"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="630" y="460" /><mxPoint x="420" y="460" /></Array></mxGeometry></mxCell>
+        <mxCell id="g0x13" value="否" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0;exitY=0.5;entryX=0.5;entryY=0;fontSize=10;" edge="1" parent="1" source="g0d4" target="g0a7"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x14" value="是" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;fontStyle=1;" edge="1" parent="1" source="g0d4" target="g0a8"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x15" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0a8" target="g0b1"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g0x16" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;dashed=1;" edge="1" parent="1" source="g0a7" target="g0b1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="150" y="640" /><mxPoint x="152" y="640" /></Array></mxGeometry></mxCell>
+        <mxCell id="g0x17" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0e1" target="g0a3"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="90" y="250" /><mxPoint x="175" y="250" /></Array></mxGeometry></mxCell>
+        <mxCell id="g0x18" style="edgeStyle=orthogonalEdgeStyle;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="g0note" target="g0e"><mxGeometry relative="1" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

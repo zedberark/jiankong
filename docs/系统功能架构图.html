@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse 系统功能架构图</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 20px; background: #f5f5f5; }
+    h1 { color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 8px; }
+    h2 { color: #555; margin-top: 32px; }
+    .diagram { background: #fff; padding: 24px; border-radius: 8px; margin: 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .mermaid { display: flex; justify-content: center; }
+    .mermaid svg { max-width: 100%; }
+    .tip { background: #e6f7ff; border-left: 4px solid #1890ff; padding: 12px; margin: 16px 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>NetPulse 系统功能架构图</h1>
+  <p class="tip">在浏览器中打开本 HTML 文件即可查看架构图。右键图表可另存为图片，或使用浏览器打印为 PDF。</p>
+
+  <h2>一、总体架构图（分层）</h2>
+  <div class="diagram">
+    <div class="mermaid">
+flowchart TB
+    subgraph 用户层
+        U[浏览器\n管理员 / 运维人员 / 只读用户]
+    end
+    subgraph 表现层["表现层（前端）"]
+        FE[Vue 3 + Vue Router + Vite\nAxios · xterm.js · ECharts\n登录 / 仪表盘 / 设备列表 / 拓扑 / 实时指标\nWeb 终端 / 批量命令 / 告警 / 配置备份\n操作审计 / 用户管理 / 系统设置 / AI 助手]
+    end
+    subgraph 业务层["业务层（后端）"]
+        BE[Spring Boot\nController → Service → Repository\n设备管理 · 状态监测 · 指标采集 · 告警\nWeb 终端 · 配置备份 · 审计 · 用户与权限\n系统配置 · AI 助手 · 批量命令\n定时任务：Ping / SNMP 采集 / 告警评估]
+    end
+    subgraph 数据与外部["数据层 / 外部系统"]
+        MySQL[(MySQL\n设备/告警/用户\n审计/配置等)]
+        Redis[(Redis\n设备指标\nSNMP 缓存)]
+        Influx[(InfluxDB\n状态时序\nTelegraf 指标)]
+        EXT[外部系统\n网络设备 SNMP/SSH/Telnet\n邮件服务器 · 大模型 API · Telegraf]
+    end
+    U --> FE
+    FE -->|"HTTP (REST)\nWebSocket (终端)"| BE
+    BE --> MySQL
+    BE --> Redis
+    BE --> Influx
+    BE --> EXT
+    </div>
+  </div>
+
+  <h2>二、功能模块架构图</h2>
+  <div class="diagram">
+    <div class="mermaid">
+flowchart TB
+    subgraph 系统["NetPulse 监控运维系统"]
+        CORE[核心业务]
+        SUPPORT[支撑功能]
+    end
+    subgraph 核心业务
+        M1[设备管理\nCRUD · 分组分页 · Ping · SSH/SNMP 配置]
+        M2[状态监测\n定时可达性检测 · 状态回写 · 触发告警]
+        M3[指标采集\nSNMP/SSH 回退 · Telegraf/InfluxDB · Redis 缓存]
+        M4[告警管理\n规则 · 阈值评估 · 历史 · 邮件通知]
+        M5[Web 终端\n浏览器 SSH/Telnet · 保活 · 双向转发]
+    end
+    subgraph 支撑功能
+        S1[配置备份\n设备/规则/系统配置 JSON 备份与恢复]
+        S2[操作审计\n操作日志 · 条件查询]
+        S3[用户与权限\n用户/角色/菜单 · 登录与权限校验]
+        S4[系统配置\n键值对 · 时区 · API 密钥]
+        S5[AI 助手\n会话 · 设备上下文 · 大模型调用]
+        S6[展示与扩展\n仪表盘 · 拓扑 · 批量命令 · 网络 AI 命令]
+    end
+    CORE --> M1 & M2 & M3 & M4 & M5
+    SUPPORT --> S1 & S2 & S3 & S4 & S5 & S6
+    系统 --> CORE & SUPPORT
+    </div>
+  </div>
+
+  <h2>三、功能模块关系图（思维导图）</h2>
+  <div class="diagram">
+    <div class="mermaid">
+mindmap
+  root((NetPulse\n监控运维系统))
+    核心业务
+      设备管理
+      状态监测
+      指标采集
+      告警管理
+      Web 终端
+    支撑功能
+      配置备份
+      操作审计
+      用户与权限
+      系统配置
+      AI 助手
+    展示与扩展
+      仪表盘
+      设备拓扑
+      批量命令
+      网络 AI 命令
+    </div>
+  </div>
+
+  <h2>四、后端与数据流简图</h2>
+  <div class="diagram">
+    <div class="mermaid">
+flowchart LR
+    subgraph 后端["Spring Boot 后端"]
+        Dev[设备管理]
+        Mon[状态监测]
+        Col[指标采集]
+        Alt[告警管理]
+        Web[Web 终端]
+        Oth[备份/审计/用户/配置/AI 等]
+    end
+    MySQL[(MySQL)]
+    Redis[(Redis)]
+    Influx[(InfluxDB)]
+    Ext[网络设备\n邮件/大模型 API]
+    Dev --> MySQL
+    Mon --> MySQL
+    Mon --> Influx
+    Col --> Redis
+    Col --> Influx
+    Col --> Ext
+    Alt --> MySQL
+    Alt --> Ext
+    Web --> Ext
+    Oth --> MySQL
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      flowchart: { useMaxWidth: true, htmlLabels: true },
+      mindmap: { useMaxWidth: true }
+    });
+  </script>
+</body>
+</html>

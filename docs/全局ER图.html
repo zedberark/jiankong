@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NetPulse 全局 E-R 图（含属性）</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body { font-family: "Microsoft YaHei", sans-serif; margin: 20px; background: #f5f5f5; }
+    h1 { color: #333; border-bottom: 2px solid #1890ff; padding-bottom: 8px; }
+    .diagram { background: #fff; padding: 24px; border-radius: 8px; margin: 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,.1); overflow: auto; }
+    .mermaid { display: flex; justify-content: center; }
+    .mermaid svg { max-width: 100%; }
+    .tip { background: #e6f7ff; border-left: 4px solid #1890ff; padding: 12px; margin: 16px 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>NetPulse 全局 E-R 图（含属性）</h1>
+  <p class="tip">在浏览器中打开本 HTML 文件即可查看。右键图表可另存为图片，或打印为 PDF。图中包含全部实体及属性，与《后端与数据库表结构对照》一致。</p>
+
+  <h2>完整版（含全部属性）</h2>
+  <div class="diagram">
+    <div class="mermaid">
+erDiagram
+    sys_user {
+        bigint id
+        varchar username
+        varchar password
+        varchar email
+        boolean enabled
+        datetime create_time
+        datetime update_time
+    }
+    role {
+        bigint id
+        varchar code
+        varchar name
+        varchar description
+        datetime create_time
+        datetime update_time
+    }
+    user_role {
+        bigint user_id
+        bigint role_id
+    }
+    role_menu {
+        bigint id
+        bigint role_id
+        varchar menu_code
+    }
+    device {
+        bigint id
+        varchar name
+        varchar ip
+        varchar type
+        varchar vendor
+        varchar model
+        varchar snmp_version
+        varchar snmp_community
+        text snmp_security
+        int snmp_port
+        int ssh_port
+        varchar ssh_user
+        varchar ssh_password
+        varchar remark
+        varchar group_name
+        varchar status
+        datetime last_poll_time
+        datetime create_time
+        datetime update_time
+        boolean deleted
+    }
+    alert_rule {
+        bigint id
+        varchar name
+        bigint device_id
+        varchar device_types
+        varchar metric_key
+        varchar rule_condition
+        varchar severity
+        boolean enabled
+        boolean notify_email
+        boolean auto_fix_enabled
+        varchar auto_fix_type
+        text auto_fix_command
+        datetime create_time
+        datetime update_time
+    }
+    alert_history {
+        bigint id
+        bigint rule_id
+        bigint device_id
+        varchar metric_key
+        varchar trigger_value
+        datetime start_time
+        datetime end_time
+        varchar status
+        varchar severity
+        text message
+        datetime create_time
+        datetime update_time
+    }
+    alert_template {
+        bigint id
+        varchar name
+        varchar metric_key
+        varchar rule_condition
+        varchar severity
+        varchar device_types
+        datetime create_time
+        datetime update_time
+    }
+    audit_log {
+        bigint id
+        varchar username
+        varchar action
+        varchar target_type
+        bigint target_id
+        text detail
+        varchar ip
+        datetime create_time
+    }
+    system_config {
+        bigint id
+        varchar config_key
+        text config_value
+        varchar remark
+        datetime create_time
+        datetime update_time
+    }
+    config_backup {
+        bigint id
+        varchar name
+        varchar backup_type
+        varchar summary
+        longtext content
+        bigint user_id
+        datetime create_time
+    }
+    ai_chat_session {
+        bigint id
+        varchar username
+        varchar title
+        datetime create_time
+    }
+    ai_chat_message {
+        bigint id
+        bigint session_id
+        varchar role
+        text content
+        datetime create_time
+    }
+    sys_user ||--o{ user_role : 拥有
+    role ||--o{ user_role : 被分配
+    role ||--o{ role_menu : 可访问菜单
+    device ||--o{ alert_rule : 适用规则
+    device ||--o{ alert_history : 告警设备
+    alert_rule ||--o{ alert_history : 产生
+    sys_user ||--o{ config_backup : 创建备份
+    ai_chat_session ||--o{ ai_chat_message : 包含消息
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'neutral',
+      er: { useMaxWidth: true, layoutDirection: 'TB' }
+    });
+  </script>
+</body>
+</html>
