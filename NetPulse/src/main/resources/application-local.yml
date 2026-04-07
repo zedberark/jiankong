@@ -1,0 +1,30 @@
+# 本地无 MySQL/Redis/RabbitMQ 时使用：仅 H2 内存库，可先跑通应用与前端
+# 启动方式：IDEA Run Configuration -> Active profiles 填 local
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  datasource:
+    url: jdbc:h2:mem:nebula_ops;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  h2:
+    console:
+      enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: create
+    database-platform: org.hibernate.dialect.H2Dialect
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+

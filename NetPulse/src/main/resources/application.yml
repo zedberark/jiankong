@@ -1,0 +1,122 @@
+# ??? application-secrets.yml??????? gitignore????????? token ?
+spring:
+  config:
+    import: optional:classpath:application-secrets.yml
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  application:
+    name: NetPulse
+
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:192.168.1.160}:${MYSQL_PORT:3309}/nebula_ops?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  data:
+    redis:
+      host: ${REDIS_HOST:192.168.1.160}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000   # ????????
+  rabbitmq:
+    host: ${RABBITMQ_HOST:192.168.1.160}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:admin}
+    password: ${RABBITMQ_PASSWORD:}
+
+server:
+  port: ${SERVER_PORT:8083}
+  servlet:
+    context-path: /api
+
+# InfluxDB?? Docker ??nebula-influxdb ???
+influxdb:
+  url: ${INFLUXDB_URL:http://192.168.1.160:8086}
+  token: ${INFLUXDB_TOKEN:}
+  org: ${INFLUXDB_ORG:nebula_org}
+  bucket: ${INFLUXDB_BUCKET:device_metrics}
+
+# 巡检报告定时任务（整点/日报/周报），关闭后仅保留手动巡检
+# probe-parallelism：并发探测线程数；1 为串行。增大可缩短总耗时（受 ICMP/TCP 超时与设备数影响）
+inspection:
+  schedule:
+    enabled: true
+    # 定时巡检报告生成后是否自动调用大模型写 AI 结论（与手动勾选 AI 一致；关闭可省 API 费用与耗时）
+    ai-enabled: true
+  probe-parallelism: 16
+
+monitor:
+  # 设备在线/离线检测间隔（秒），默认 60 秒，提高同步率；可改为 30 更快或 120 降低负载
+  collect-interval: 60
+  ping-timeout: 3000
+  stats-initial-delay: 30
+  stats-interval: 60
+
+# 网络设备（含防火墙）与锐捷等一致：在「设备管理」中按设备添加，配置 SNMP v2c/v3 或 SSH，由 DeviceSnmpCollectService 按设备采集。
+# 下方 firewall 为早期「单台固定主机」采集，默认关闭；后续防火墙也请在设备管理中添加。
+snmp:
+  use-redis: true
+  port: 161
+  firewall:
+    # 固定主机采集默认关闭；网络设备/防火墙统一在设备管理中按设备配置（与锐捷一致）
+    enabled: ${SNMP_FIREWALL_ENABLED:false}
+    host: ${SNMP_FIREWALL_HOST:192.168.1.160}
+    port: ${SNMP_FIREWALL_PORT:161}
+    # ?? SNMP ????????????????CPU/?????????EVE ??????????10000??5000
+    timeout-ms: ${SNMP_TIMEOUT_MS:10000}
+    retries: ${SNMP_RETRIES:2}
+    username: ${SNMP_USERNAME:snmpuser}
+    auth-protocol: SHA
+    auth-password: ${SNMP_AUTH_PASSWORD:}
+    priv-protocol: AES-128
+    priv-password: ${SNMP_PRIV_PASSWORD:}
+    security-level: authPriv
+  collect:
+    # SNMP 定时采集间隔，默认 5 分钟，与 SSH 一致以减少频繁建连/断开
+    enabled: true
+    interval-ms: ${SNMP_COLLECT_INTERVAL_MS:300000}
+  redis:
+    key-prefix: netpulse:snmp:device
+  # ?? OID???????? SnmpUtils ?? OID ???
+  oid:
+    cpu-usage: 1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5.1
+    mem-usage: 1.3.6.1.4.1.2011.5.25.31.1.1.1.1.6.1
+
+# ?????? SSH ???????? CPU/????????? display cpu-usage / display memory-usage ????????? Redis??????????
+# ??? snmp.collect.enabled=false ??? SSH ?????????
+ssh-collect:
+  enabled: ${SSH_COLLECT_ENABLED:true}
+  # 默认 5 分钟采集一次，避免 SSH/Telnet 建连/断开会话过于频繁
+  interval-ms: ${SSH_COLLECT_INTERVAL_MS:300000}
+  initial-delay-ms: ${SSH_COLLECT_INITIAL_DELAY_MS:15000}
+  # Web SSH 连不上的设备每 5 分钟探活一次，可连则恢复采集
+  webssh-recheck-initial-delay-ms: ${SSH_COLLECT_WEBSSH_RECHECK_INITIAL_MS:60000}
+  webssh-recheck-interval-ms: ${SSH_COLLECT_WEBSSH_RECHECK_INTERVAL_MS:300000}
+
+logging:
+  level:
+    root: INFO
+    org.ops: DEBUG
+
+webssh:
+  # 终端连接容错：避免网络抖动或设备响应慢导致“socket is not established”
+  ssh-connect-timeout-ms: ${WEBSSH_SSH_CONNECT_TIMEOUT_MS:20000}
+  ssh-channel-connect-timeout-ms: ${WEBSSH_SSH_CHANNEL_TIMEOUT_MS:15000}
+  ssh-session-timeout-ms: ${WEBSSH_SSH_SESSION_TIMEOUT_MS:30000}
+  telnet-connect-timeout-ms: ${WEBSSH_TELNET_CONNECT_TIMEOUT_MS:20000}
+
+auth:
+  token-secret: ${AUTH_TOKEN_SECRET:}
+
+app:
+  cors:
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}

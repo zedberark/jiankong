@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPU/内存使用率折线图 - NetPulse</title>
+  <script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+  <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 16px; background: #f5f5f5; }
+    .query-form { text-align: center; margin: 20px 0; padding: 12px; background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .query-form label { margin-right: 6px; }
+    .query-form input, .query-form button { padding: 8px 12px; margin: 0 6px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; }
+    .query-form button { background: #1890ff; color: #fff; border: none; cursor: pointer; }
+    .query-form button:hover { background: #40a9ff; }
+    #chart-container { width: 100%; max-width: 1200px; height: 520px; margin: 20px auto; background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .tip { text-align: center; color: #666; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="query-form">
+    <label>设备ID：</label>
+    <input type="text" id="deviceId" value="1" placeholder="设备ID">
+    <label>查询时长（小时）：</label>
+    <input type="number" id="hours" value="1" min="1" max="24">
+    <button type="button" onclick="loadChartData()">刷新数据</button>
+  </div>
+  <div id="chart-container"></div>
+  <p class="tip">数据来源：InfluxDB 桶 device_metrics，measurement=device_metric，metric_key=cpu_usage/mem_usage。无数据时请先执行 README 中的测试写入脚本或由业务写入该结构。</p>
+
+  <script>
+    var myChart = echarts.init(document.getElementById('chart-container'));
+
+    var option = {
+      title: { text: 'CPU/内存使用率趋势', left: 'center', fontSize: 18 },
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+          var res = params[0].name;
+          params.forEach(function (item) { res += '<br/>' + item.seriesName + '：' + item.value + '%'; });
+          return res;
+        }
+      },
+      legend: { data: ['CPU使用率', '内存使用率'], top: 'bottom' },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: [],
+        axisLabel: { rotate: 30, fontSize: 12 }
+      },
+      yAxis: {
+        type: 'value',
+        name: '使用率 (%)',
+        min: 0,
+        max: 100,
+        interval: 20
+      },
+      series: [
+        { name: 'CPU使用率', type: 'line', data: [], smooth: true, itemStyle: { color: '#ff4d4f' } },
+        { name: '内存使用率', type: 'line', data: [], smooth: true, itemStyle: { color: '#1890ff' } }
+      ]
+    };
+
+    function loadChartData() {
+      var deviceId = $('#deviceId').val();
+      var hours = $('#hours').val();
+      $.ajax({
+        url: '/api/metric/cpu-mem',
+        type: 'GET',
+        data: { deviceId: deviceId, hours: hours },
+        success: function (data) {
+          var cpuTime = [], cpuValue = [], memValue = [];
+          (data.cpu || []).forEach(function (item) {
+            cpuTime.push(item.time);
+            cpuValue.push(item.value);
+          });
+          (data.mem || []).forEach(function (item) { memValue.push(item.value); });
+          if (cpuTime.length === 0 && (data.mem || []).length > 0) {
+            (data.mem || []).forEach(function (item) { cpuTime.push(item.time); });
+          }
+          option.xAxis.data = cpuTime;
+          option.series[0].data = cpuValue;
+          option.series[1].data = memValue;
+          myChart.setOption(option);
+        },
+        error: function (xhr) {
+          alert('数据加载失败：' + (xhr.responseText || xhr.statusText));
+        }
+      });
+    }
+
+    myChart.setOption(option);
+    loadChartData();
+    window.addEventListener('resize', function () { myChart.resize(); });
+  </script>
+</body>
+</html>

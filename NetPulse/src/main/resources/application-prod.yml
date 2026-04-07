@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    password: ${MYSQL_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+
+auth:
+  token-secret: ${AUTH_TOKEN_SECRET}
