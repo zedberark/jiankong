@@ -54,7 +54,17 @@ public class AiChatService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 系统提示前缀：新会话拉取新快照，同一会话内沿用首次拉取的快照。告警以「告警通知」页的规则与历史为准。 */
-    private static final String SYSTEM_PROMPT_PREFIX = "你是运维助手。请结合「当前对话上下文」与下文的「设备与监控信息」回答用户，回复要有针对性、可引用上文设备/告警数据。告警功能在「告警通知」页查看与处理，请根据上下文中的规则告警条数回答，勿误导；若用户问告警可引导至「告警通知」页。\n【输出要求】只输出你本轮的回复正文，可自然引用当前上下文（如「根据当前设备信息…」），但不要重复用户原句、不要输出整段对话历史、不要加「用户：」「助手：」等前缀，不要用 ** 包裹大段内容。回复简洁专业。\n\n【当前设备与监控信息】\n";
+    private static final String SYSTEM_PROMPT_PREFIX = "你是运维助手。请结合「当前对话上下文」与下文的「设备与监控信息」回答用户，回复要有针对性、可引用上文设备/告警数据。告警功能在「告警通知」页查看与处理，请根据上下文中的规则告警条数回答，勿误导；若用户问告警可引导至「告警通知」页。\n【输出要求】\n1. 直接输出本轮回复正文，不要加“用户：/助手：”前缀。\n2. 回复要比普通聊天更充分：优先给出结论，再给出依据（引用具体设备/状态/指标），最后给出可执行建议。\n3. 当问题涉及排障、异常、性能时，尽量使用 3-6 条要点，避免过短。\n4. 不要复述整段历史对话，不要输出与上下文无关的模板话术，不要用 ** 包裹大段内容。\n\n【当前设备与监控信息】\n";
+    /** 网络设备命令生成专用系统提示：不注入通用设备上下文，避免厂商风格串台 */
+    private static final String NETWORK_CLI_SYSTEM_PROMPT =
+            "你是网络设备 CLI 命令生成助手。你的唯一任务是根据用户给定的设备厂商与需求生成可执行命令。\n"
+                    + "【硬性要求】\n"
+                    + "1. 严格遵循用户指定的厂商语法，不得混入其他厂商命令风格。\n"
+                    + "2. 只输出命令本体，不输出解释、说明、前后缀、Markdown 代码块。\n"
+                    + "3. 输出要「完整可落地」：凡涉及 VLAN/三层网关/SVI/Vlanif，须写出从进入配置模式到各 VLAN 接口就绪的完整步骤（含创建 VLAN、配置三层接口 IP、no shutdown 或等价命令；三层交换机还须 ip routing 或厂商等价使能）。禁止只给半截 interface 片段。\n"
+                    + "4. 若用户需求含多个 VLAN（如 100、200），须为每个 VLAN 分别给出完整配置段，顺序合理。\n"
+                    + "5. 若用户信息不足，用合理占位 IP（如 192.168.x.1/24）并在行首用 # 注释说明可替换。\n"
+                    + "6. 若无法确认某条命令的厂商语法，输出该条命令的占位注释（以 # 开头）而不是编造其他厂商语法。";
 
     /** AI 巡检：仅根据结构化巡检数据输出结论，不混入通用设备快照 */
     private static final String INSPECTION_SYSTEM_PROMPT =
@@ -106,14 +116,42 @@ public class AiChatService {
     public ChatResult chatOneShot(String username, String userMessage) {
         if (username == null || username.isBlank()) throw new IllegalArgumentException("需要登录用户");
         if (userMessage == null || userMessage.isBlank()) throw new IllegalArgumentException("消息不能为空");
-        String context = buildContext();
         List<Map<String, String>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT_PREFIX + context));
+        if (isNetworkCliPrompt(userMessage)) {
+            messages.add(Map.of("role", "system", "content", NETWORK_CLI_SYSTEM_PROMPT));
+        } else {
+            String context = buildContext();
+            messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT_PREFIX + context));
+        }
         messages.add(Map.of("role", "user", "content", userMessage));
-        String reply = callLlm(messages);
+        // 网络 CLI 生成需要较长输出，提高 max_tokens 避免截断
+        String reply = isNetworkCliPrompt(userMessage) ? callLlm(messages, 4096) : callLlm(messages);
         if (reply == null) reply = "当前无法获取 AI 回复，请确认在「系统设置」中已配置并启用千问或 DeepSeek API。";
         reply = stripConversationEcho(reply);
+        // 命令生成场景进一步清理代码块包裹
+        if (isNetworkCliPrompt(userMessage)) {
+            reply = stripMarkdownCodeFence(reply);
+        }
         return new ChatResult(null, reply);
+    }
+
+    private boolean isNetworkCliPrompt(String userMessage) {
+        String s = userMessage == null ? "" : userMessage;
+        return s.contains("配置命令（CLI）")
+                || s.contains("只输出可直接在设备上执行的配置命令")
+                || s.contains("网络设备")
+                || s.contains("CLI");
+    }
+
+    private String stripMarkdownCodeFence(String text) {
+        if (text == null) return null;
+        String t = text.trim();
+        if (t.startsWith("```")) {
+            int firstNl = t.indexOf('\n');
+            if (firstNl >= 0) t = t.substring(firstNl + 1);
+            if (t.endsWith("```")) t = t.substring(0, t.length() - 3).trim();
+        }
+        return t;
     }
 
     /**
@@ -284,9 +322,17 @@ public class AiChatService {
         long firingCount = getFiringAlertCount();
         sb.append("• 设备总数：").append(devices.size()).append(" 台\n");
         sb.append("• 在线（正常）：").append(health.getOrDefault("normal", 0L)).append(" 台\n");
+        sb.append("• 在线（告警/严重）：")
+                .append(health.getOrDefault("warning", 0L) + health.getOrDefault("critical", 0L))
+                .append(" 台\n");
         sb.append("• 离线：").append(health.getOrDefault("offline", 0L)).append(" 台\n");
         sb.append("• 未处理告警：").append(firingCount).append(" 条\n");
         sb.append("规则与历史请到「告警通知」页查看。\n\n");
+
+        appendOfflineDevices(sb, devices);
+        appendTopUsageDevices(sb, devices, stats);
+        appendRecentFiringAlerts(sb);
+        sb.append("\n");
 
         for (Device d : devices) {
             sb.append("- ").append(d.getName()).append(" | IP: ").append(d.getIp()).append(" | 类型: ").append(d.getType()).append(" | 状态: ").append(d.getStatus());
@@ -299,6 +345,85 @@ public class AiChatService {
             sb.append("\n");
         }
         return sb.toString();
+    }
+
+    private void appendOfflineDevices(StringBuilder sb, List<Device> devices) {
+        List<Device> offline = devices.stream()
+                .filter(d -> d.getStatus() == Device.DeviceStatus.offline)
+                .limit(8)
+                .toList();
+        sb.append("【离线设备（最多8台）】\n");
+        if (offline.isEmpty()) {
+            sb.append("- 无\n");
+            return;
+        }
+        for (Device d : offline) {
+            sb.append("- ").append(d.getName()).append(" (").append(d.getIp()).append(")\n");
+        }
+    }
+
+    private void appendTopUsageDevices(StringBuilder sb, List<Device> devices, Map<Long, DeviceStatsService.DeviceStats> stats) {
+        List<Device> withCpu = devices.stream()
+                .filter(d -> d.getId() != null && stats.containsKey(d.getId()))
+                .filter(d -> stats.get(d.getId()).getCpuPercent() != null)
+                .sorted((a, b) -> Double.compare(
+                        stats.get(b.getId()).getCpuPercent(),
+                        stats.get(a.getId()).getCpuPercent()))
+                .limit(5)
+                .toList();
+        sb.append("【CPU Top5】\n");
+        if (withCpu.isEmpty()) {
+            sb.append("- 无可用 CPU 指标\n");
+        } else {
+            for (Device d : withCpu) {
+                Double cpu = stats.get(d.getId()).getCpuPercent();
+                sb.append("- ").append(d.getName()).append(" (").append(d.getIp()).append("): ")
+                        .append(String.format(java.util.Locale.CHINA, "%.1f%%", cpu)).append('\n');
+            }
+        }
+
+        List<Device> withMem = devices.stream()
+                .filter(d -> d.getId() != null && stats.containsKey(d.getId()))
+                .filter(d -> stats.get(d.getId()).getMemoryPercent() != null)
+                .sorted((a, b) -> Double.compare(
+                        stats.get(b.getId()).getMemoryPercent(),
+                        stats.get(a.getId()).getMemoryPercent()))
+                .limit(5)
+                .toList();
+        sb.append("【内存 Top5】\n");
+        if (withMem.isEmpty()) {
+            sb.append("- 无可用内存指标\n");
+            return;
+        }
+        for (Device d : withMem) {
+            Double mem = stats.get(d.getId()).getMemoryPercent();
+            sb.append("- ").append(d.getName()).append(" (").append(d.getIp()).append("): ")
+                    .append(String.format(java.util.Locale.CHINA, "%.1f%%", mem)).append('\n');
+        }
+    }
+
+    private void appendRecentFiringAlerts(StringBuilder sb) {
+        sb.append("【最近未处理告警（最多5条）】\n");
+        if (alertHistoryRepository == null) {
+            sb.append("- 无\n");
+            return;
+        }
+        try {
+            List<AlertHistory> recent = alertHistoryRepository.findBySeverityInAndStatusOrderByStartTimeDesc(
+                    List.of(AlertRule.Severity.critical, AlertRule.Severity.warning, AlertRule.Severity.info),
+                    AlertHistory.AlertStatus.firing,
+                    org.springframework.data.domain.PageRequest.of(0, 5));
+            if (recent == null || recent.isEmpty()) {
+                sb.append("- 无\n");
+                return;
+            }
+            for (AlertHistory h : recent) {
+                sb.append("- ").append(h.getSeverity()).append(" | deviceId=").append(h.getDeviceId())
+                        .append(" | ").append(h.getMessage() != null ? h.getMessage() : "-").append('\n');
+            }
+        } catch (Exception e) {
+            sb.append("- 无\n");
+        }
     }
 
     /** 当前未处理告警(告警中)条数，供助手上下文；无 repository 时返回 0 */
@@ -314,23 +439,32 @@ public class AiChatService {
         }
     }
 
-    /** 与「实时指标」一致：Linux 用 DeviceStatsService，网络设备用 Redis/SSH 缓存，合并后供助手随时获取当前系统信息 */
+    /** 与「实时指标」一致：Linux 用 DeviceStatsService；网络设备优先 SNMP（Redis），再 SSH（{@link NetworkDeviceStatsMerger#DEFAULT_MAX_AGE_MS} 内有效）。 */
     private Map<Long, DeviceStatsService.DeviceStats> buildMergedStatsSnapshot(List<Device> devices) {
         Map<Long, DeviceStatsService.DeviceStats> merged = new HashMap<>();
         if (deviceStatsService != null) {
             merged.putAll(deviceStatsService.getStatsSnapshot());
         }
+        Map<Long, DeviceStatsService.DeviceStats> snmpByDeviceId = Map.of();
+        if (snmpStatsService != null) {
+            try {
+                snmpByDeviceId = snmpStatsService.getStatsFromRedisByIp(devices);
+            } catch (Exception e) {
+                // 助手上下文降级：无 Redis 时不阻塞
+            }
+        }
+        long now = System.currentTimeMillis();
+        long maxAge = NetworkDeviceStatsMerger.DEFAULT_MAX_AGE_MS;
         for (Device d : devices) {
             if (d.getId() == null || merged.containsKey(d.getId())) continue;
             if (d.getType() != null && d.getType() == Device.DeviceType.server) continue;
             String ip = d.getIp() != null ? d.getIp().trim() : "";
             if (ip.isEmpty()) continue;
-            DeviceStatsService.DeviceStats s = null;
-            if (deviceSshCollectService != null) s = deviceSshCollectService.getStatsByIp(ip);
-            if (s == null && snmpStatsService != null) {
-                Map<Long, DeviceStatsService.DeviceStats> byRedis = snmpStatsService.getStatsFromRedisByIp(List.of(d));
-                s = byRedis.get(d.getId());
-            }
+            DeviceStatsService.DeviceStats snmpRow = snmpByDeviceId.get(d.getId());
+            DeviceStatsService.DeviceStats sshRow = deviceSshCollectService != null
+                    ? deviceSshCollectService.getStatsByIp(ip) : null;
+            NetworkDeviceStatsMerger.Pick pick = NetworkDeviceStatsMerger.pick(now, maxAge, snmpRow, sshRow);
+            DeviceStatsService.DeviceStats s = pick.stats();
             if (s != null) merged.put(d.getId(), s);
         }
         return merged;
@@ -371,7 +505,7 @@ public class AiChatService {
 
     /** 根据系统配置选择千问或 DeepSeek 调用 LLM，返回助手回复内容 */
     private String callLlm(List<Map<String, String>> messages) {
-        return callLlm(messages, 1024);
+        return callLlm(messages, 2048);
     }
 
     private String callLlm(List<Map<String, String>> messages, int maxTokens) {

@@ -5,9 +5,12 @@ import org.ops.netpulse.entity.Device;
 import org.ops.netpulse.service.AuditService;
 import org.ops.netpulse.service.BatchCommandService;
 import org.ops.netpulse.service.DeviceService;
+import org.ops.netpulse.service.MonitorService;
 import org.ops.netpulse.util.OsReleaseParser;
 import org.ops.netpulse.snmp.DeviceSnmpCollectService;
+import org.ops.netpulse.snmp.SnmpUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,10 +32,17 @@ public class DeviceController {
     private final DeviceService deviceService;
     private final AuditService auditService;
     private final BatchCommandService batchCommandService;
+    private final MonitorService monitorService;
 
     /** SNMP 直采服务，snmp.collect.enabled=true 时存在 */
     @Autowired(required = false)
     private DeviceSnmpCollectService deviceSnmpCollectService;
+
+    /** 添加/编辑设备时 SNMP 探测厂商（与采集共用超时配置） */
+    @Value("${snmp.firewall.timeout-ms:10000}")
+    private int snmpProbeTimeoutMs;
+    @Value("${snmp.firewall.retries:2}")
+    private int snmpProbeRetries;
 
     /** 设备列表，可选按分组过滤（group 为空则查全部） */
     @GetMapping
@@ -65,6 +75,11 @@ public class DeviceController {
         if (device.getIp() == null || device.getIp().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("message", "请填写管理 IP"));
         }
+        String ip = device.getIp().trim();
+        device.setIp(ip);
+        if (deviceService.existsActiveByIp(ip)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "设备已存在（相同管理 IP）：" + ip));
+        }
         if (device.getType() == null) device.setType(Device.DeviceType.server);
         // 新增设备默认标记为离线，待监控任务实际探测后再更新为在线/告警
         if (device.getStatus() == null) device.setStatus(Device.DeviceStatus.offline);
@@ -76,8 +91,10 @@ public class DeviceController {
         if (device.getSnmpPort() == null) device.setSnmpPort(161);
         try {
             Device saved = deviceService.save(device);
+            saved = tryApplySnmpVendorProbe(saved);
             // 新增时不执行 SSH 获取主机名，避免添加页面因 SSH 连接卡住；用户可在列表页对在线设备点「获取主机名」
-            auditService.log("CREATE_DEVICE", "device", saved.getId(), "name=" + (saved.getName() != null ? saved.getName() : ""));
+            String auditExtra = saved.getVendor() != null && !saved.getVendor().isBlank() ? " vendor=" + saved.getVendor() : "";
+            auditService.log("CREATE_DEVICE", "device", saved.getId(), "name=" + (saved.getName() != null ? saved.getName() : "") + auditExtra);
             return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(saved);
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : "保存失败";
@@ -94,19 +111,58 @@ public class DeviceController {
             return ResponseEntity.notFound().build();
         }
         Device existing = existingOpt.get();
-        device.setId(id);
-        device.setDeleted(false);
-        if (device.getSshPassword() == null || device.getSshPassword().isBlank()) {
-            device.setSshPassword(existing.getSshPassword());
+        // 基于已存在实体逐字段合并，避免前端缺字段时被整对象覆盖导致“刷新后又回退”。
+        existing.setDeleted(false);
+        existing.setName(device.getName() != null ? device.getName() : "");
+        if (device.getIp() != null) existing.setIp(device.getIp());
+        if (device.getType() != null) existing.setType(device.getType());
+        existing.setVendor(device.getVendor());
+        existing.setModel(device.getModel());
+        existing.setRemark(device.getRemark());
+        existing.setGroupName(device.getGroupName());
+        if (device.getStatus() != null) existing.setStatus(device.getStatus());
+        if (device.getLastPollTime() != null) existing.setLastPollTime(device.getLastPollTime());
+        if (device.getSnmpVersion() != null) existing.setSnmpVersion(device.getSnmpVersion());
+        if (device.getSnmpCommunity() != null) existing.setSnmpCommunity(device.getSnmpCommunity());
+        if (device.getSnmpSecurity() != null) existing.setSnmpSecurity(device.getSnmpSecurity());
+        if (device.getSnmpPort() != null) existing.setSnmpPort(device.getSnmpPort());
+        if (device.getSshPort() != null) existing.setSshPort(device.getSshPort());
+        if (device.getSshPassword() != null && !device.getSshPassword().isBlank()) {
+            existing.setSshPassword(device.getSshPassword());
         }
-        if (device.getSshUser() == null || device.getSshUser().isBlank()) {
-            device.setSshUser(existing.getSshUser());
+        if (device.getSshUser() != null && !device.getSshUser().isBlank()) {
+            existing.setSshUser(device.getSshUser());
         }
-        if (device.getName() == null) device.setName("");
-        Device saved = deviceService.save(device);
+        Device saved = deviceService.save(existing);
         saved = tryFetchHostnameAndUpdate(saved, false); // 仅在线时通过 SSH 获取主机名，不对离线设备执行
+        saved = tryApplySnmpVendorProbe(saved);
         auditService.log("UPDATE_DEVICE", "device", id, "name=" + (saved.getName() != null ? saved.getName() : ""));
         return ResponseEntity.ok(saved);
+    }
+
+    /**
+     * 若厂商为空且已配置 SNMP，则 GET sysDescr/sysObjectID 自动识别厂商并写回 {@link Device#getVendor()}（中文常用名）。
+     * 不依赖 {@link DeviceSnmpCollectService} 是否启用；失败静默，避免阻塞保存主流程过久时可调小超时。
+     */
+    private Device tryApplySnmpVendorProbe(Device d) {
+        if (d == null) return null;
+        if (d.getVendor() != null && !d.getVendor().isBlank()) return d;
+        if (!isSnmpConfiguredForProbe(d)) return d;
+        String key = SnmpUtils.probeVendorKey(d, snmpProbeTimeoutMs, snmpProbeRetries);
+        if (key == null || key.isBlank()) return d;
+        String label = SnmpUtils.vendorKeyToUiLabel(key);
+        if (label == null || label.isBlank()) return d;
+        d.setVendor(label);
+        return deviceService.save(d);
+    }
+
+    private static boolean isSnmpConfiguredForProbe(Device d) {
+        if (d.getIp() == null || d.getIp().isBlank()) return false;
+        if (d.getSnmpVersion() == Device.SnmpVersion.v3) {
+            return d.getSnmpSecurity() != null && !d.getSnmpSecurity().isBlank();
+        }
+        // v1/v2c：允许团体字为空（按 public 探测）
+        return true;
     }
 
     /** 若为 Linux 服务器且已配 SSH 且名称为空，通过 SSH 执行 hostname 将结果回填到设备名称。仅对在线设备执行（skipOfflineCheck=false）。 */
@@ -140,6 +196,13 @@ public class DeviceController {
                 "rttMs", rtt,
                 "status", rtt >= 0 ? "up" : "down"
         ));
+    }
+
+    /** 立即刷新全部设备在线状态（执行一次可达性探测并写回 status/lastPollTime），用于前端手动「刷新」时强制同步各模块状态。 */
+    @PostMapping("/refresh-status")
+    public ResponseEntity<Map<String, Object>> refreshStatus() {
+        monitorService.collectMetrics();
+        return ResponseEntity.ok(Map.of("message", "设备状态已刷新"));
     }
 
     /** 对指定设备执行一次 SNMP 采集（直采模式），可选写入 Redis */

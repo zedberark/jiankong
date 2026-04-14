@@ -43,6 +43,7 @@ public class AlertEmailService {
     private final AlertRuleRepository alertRuleRepository;
     private final DeviceRepository deviceRepository;
     private final SysUserRepository userRepository;
+    private final AuditService auditService;
 
     /**
      * 获取告警通知（邮箱）配置，供前端展示与保存。
@@ -89,13 +90,27 @@ public class AlertEmailService {
     public void sendAlertEmailAsync(AlertHistory history) {
         if (history == null || history.getId() == null) return;
         AlertRule rule = history.getRuleId() != null ? alertRuleRepository.findById(history.getRuleId()).orElse(null) : null;
-        if (rule == null || !Boolean.TRUE.equals(rule.getNotifyEmail())) return;
-        if (!"1".equals(configService.getValue(KEY_EMAIL_ENABLED).orElse("0"))) return;
+        if (rule == null || !Boolean.TRUE.equals(rule.getNotifyEmail())) {
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_SKIPPED", "alert_history", history.getId(),
+                    "未发送邮件：规则未开启邮件通知");
+            return;
+        }
+        if (!"1".equals(configService.getValue(KEY_EMAIL_ENABLED).orElse("0"))) {
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_SKIPPED", "alert_history", history.getId(),
+                    "未发送邮件：系统未启用邮件通知");
+            return;
+        }
         String to = resolveRecipients(history);
-        if (to == null || to.isEmpty()) return;
+        if (to == null || to.isEmpty()) {
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_SKIPPED", "alert_history", history.getId(),
+                    "未发送邮件：无匹配收件人");
+            return;
+        }
         String host = configService.getValue(KEY_SMTP_HOST).map(String::trim).orElse(null);
         if (host == null || host.isEmpty()) {
             log.warn("告警邮件未发送：未配置 SMTP 主机");
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_FAILED", "alert_history", history.getId(),
+                    "发送失败：未配置 SMTP 主机");
             return;
         }
         Device device = history.getDeviceId() != null ? deviceRepository.findById(history.getDeviceId()).orElse(null) : null;
@@ -117,11 +132,15 @@ public class AlertEmailService {
             helper.setSubject(subject);
             helper.setText(body, true);
             sender.send(message);
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_SENT", "alert_history", history.getId(),
+                    String.format("发送成功：to=%s, host=%s, ruleId=%s", to, host, history.getRuleId()));
             log.info("告警邮件已发送 historyId={} to={}", history.getId(), to);
         } catch (Exception e) {
             // 捕获所有发邮件异常（含 MailSendException、ConnectException 等），仅打日志不抛出，避免影响告警主流程
             String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             log.warn("告警邮件发送失败 historyId={} host={}: {}。请检查「系统设置-告警通知」SMTP 地址（如 163 应为 smtp.163.com）、端口、授权码及网络。", history.getId(), host, msg);
+            auditService.logAs("SYSTEM_ALERT", "ALERT_EMAIL_FAILED", "alert_history", history.getId(),
+                    String.format("发送失败：host=%s, reason=%s", host, msg));
         }
     }
 

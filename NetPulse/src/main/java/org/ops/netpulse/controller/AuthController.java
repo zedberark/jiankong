@@ -36,7 +36,7 @@ public class AuthController {
         String username = body.getUsername() != null ? body.getUsername().trim() : "";
         String password = body.getPassword() != null ? body.getPassword().trim() : "";
         if (username.isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "message", "请输入用户名"));
+            return ResponseEntity.status(401).body(Map.of("success", false, "message", "登录失败"));
         }
         SysUser user = userRepository.findByUsernameAndEnabledTrue(username).orElse(null);
         if (user == null || password.isEmpty()) {

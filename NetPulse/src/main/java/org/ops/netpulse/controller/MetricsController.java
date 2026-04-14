@@ -7,7 +7,9 @@ import org.ops.netpulse.entity.Device;
 import org.ops.netpulse.service.DeviceService;
 import org.ops.netpulse.service.DeviceSshCollectService;
 import org.ops.netpulse.service.DeviceStatsService;
+import org.ops.netpulse.service.NetworkDeviceStatsMerger;
 import org.ops.netpulse.service.LocalHostStatsService;
+import org.ops.netpulse.snmp.DeviceSnmpCollectService;
 import org.ops.netpulse.service.SnmpStatsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,7 @@ public class MetricsController {
     private final InfluxDBClient influxDBClient;
     private final SnmpStatsService snmpStatsService;
     private final DeviceSshCollectService deviceSshCollectService;
+    private final DeviceSnmpCollectService deviceSnmpCollectService;
     private final LocalHostStatsService localHostStatsService;
 
     public MetricsController(DeviceService deviceService,
@@ -48,12 +51,14 @@ public class MetricsController {
                              @Autowired(required = false) InfluxDBClient influxDBClient,
                              @Autowired(required = false) SnmpStatsService snmpStatsService,
                              @Autowired(required = false) DeviceSshCollectService deviceSshCollectService,
+                             @Autowired(required = false) DeviceSnmpCollectService deviceSnmpCollectService,
                              LocalHostStatsService localHostStatsService) {
         this.deviceService = deviceService;
         this.deviceStatsService = deviceStatsService;
         this.influxDBClient = influxDBClient;
         this.snmpStatsService = snmpStatsService;
         this.deviceSshCollectService = deviceSshCollectService;
+        this.deviceSnmpCollectService = deviceSnmpCollectService;
         this.localHostStatsService = localHostStatsService;
     }
 
@@ -221,6 +226,9 @@ public class MetricsController {
 
     /** 实时指标仅展示最近 5 分钟内的数据，超过视为过期不返回，避免出现「25 分钟前」等旧数据。 */
     private static final long REALTIME_STATS_MAX_AGE_MS = 5 * 60 * 1000L;
+    /** 实时接口触发 SSH 补采的最小间隔，避免每次刷新都重复触发导致接口变慢。 */
+    private static final long REALTIME_SSH_FALLBACK_THROTTLE_MS = 30_000L;
+    private final Map<Long, Long> realtimeSshFallbackLastTrigger = new ConcurrentHashMap<>();
 
     /** 实时指标：所有设备 + 健康汇总 + CPU/内存；区分数据来源：Linux=InfluxDB/SSH，网络设备=SNMP/Redis；含饼图数据。 */
     @GetMapping("/realtime")
@@ -245,7 +253,7 @@ public class MetricsController {
                 statsSource.put(String.valueOf(e.getKey()), "telegraf");
             }
         }
-        // 网络设备：优先从 SSH/Telnet 内存缓存按 IP 取（厂商命令采集），无则从 Redis 取（SNMP 等）
+        // 网络设备：优先 Redis（SNMP），无效或过期再用 SSH/Telnet 厂商命令缓存；SSH 命中时可合并 SNMP 流量字段
         Map<Long, DeviceStatsService.DeviceStats> snmpStats = Map.of();
         if (snmpStatsService != null) {
             try {
@@ -260,21 +268,49 @@ public class MetricsController {
             if (d.getId() == null || d.getIp() == null || d.getIp().isBlank()) continue;
             String idStr = String.valueOf(d.getId());
             if ("telegraf".equals(statsSource.get(idStr))) continue;
-            DeviceStatsService.DeviceStats devStats = null;
-            if (deviceSshCollectService != null) {
-                devStats = deviceSshCollectService.getStatsByIp(d.getIp().trim());
+            DeviceStatsService.DeviceStats snmpRow = snmpStats.get(d.getId());
+            DeviceStatsService.DeviceStats sshRow = deviceSshCollectService != null
+                    ? deviceSshCollectService.getStatsByIp(d.getIp().trim()) : null;
+            // SNMP 只有流量、CPU/内存为空时：异步触发 SSH/Telnet 补采，避免实时接口阻塞导致前端超时。
+            boolean online = d.getStatus() != Device.DeviceStatus.offline;
+            boolean snmpHasTrafficOnly = snmpRow != null
+                    && !hasCpuOrMem(snmpRow)
+                    && (notBlank(snmpRow.getIfInOctetsTotal()) || notBlank(snmpRow.getIfOutOctetsTotal()));
+            boolean sshMissingCpuMem = !hasCpuOrMem(sshRow);
+            if (online && snmpHasTrafficOnly && sshMissingCpuMem && deviceSshCollectService != null) {
+                long nowMs = System.currentTimeMillis();
+                Long lastAt = realtimeSshFallbackLastTrigger.get(d.getId());
+                if (lastAt == null || (nowMs - lastAt) >= REALTIME_SSH_FALLBACK_THROTTLE_MS) {
+                    realtimeSshFallbackLastTrigger.put(d.getId(), nowMs);
+                    CompletableFuture.runAsync(() -> {
+                        try {
+                            if (deviceSshCollectService.collectOne(d.getId())) {
+                                log.debug("实时指标异步 SSH 补采成功 id={} ip={}（SNMP仅流量）", d.getId(), d.getIp());
+                            }
+                        } catch (Exception e) {
+                            log.debug("实时指标异步 SSH 补采失败 id={} ip={}: {}", d.getId(), d.getIp(), e.getMessage());
+                        }
+                    });
+                }
             }
-            if (devStats == null) devStats = snmpStats.get(d.getId());
+            NetworkDeviceStatsMerger.Pick pick = NetworkDeviceStatsMerger.pick(now, REALTIME_STATS_MAX_AGE_MS, snmpRow, sshRow);
+            DeviceStatsService.DeviceStats devStats = pick.stats();
             if (devStats == null) continue;
-            if (devStats.getUpdatedAt() > 0 && (now - devStats.getUpdatedAt()) > REALTIME_STATS_MAX_AGE_MS) continue;
             Map<String, Object> v = new HashMap<>();
             if (devStats.getCpuPercent() != null) v.put("cpuPercent", devStats.getCpuPercent());
             if (devStats.getMemoryPercent() != null) v.put("memoryPercent", devStats.getMemoryPercent());
             if (devStats.getDiskPercent() != null) v.put("diskPercent", devStats.getDiskPercent());
+            if (devStats.getIfInOctetsTotal() != null && !devStats.getIfInOctetsTotal().isBlank()) {
+                v.put("ifInOctetsTotal", devStats.getIfInOctetsTotal());
+            }
+            if (devStats.getIfOutOctetsTotal() != null && !devStats.getIfOutOctetsTotal().isBlank()) {
+                v.put("ifOutOctetsTotal", devStats.getIfOutOctetsTotal());
+            }
             if (devStats.getUpdatedAt() > 0) v.put("updatedAt", devStats.getUpdatedAt());
             if (!v.isEmpty()) {
                 stats.put(idStr, v);
-                statsSource.put(idStr, "snmp");
+                String src = pick.source();
+                statsSource.put(idStr, src != null ? src : "snmp");
             }
         }
         Map<String, Object> pieData = buildPieData(devices, stats, statsSource);
@@ -284,9 +320,19 @@ public class MetricsController {
         result.put("stats", stats);
         result.put("statsSource", statsSource);
         result.put("pieData", pieData);
-        // 有 Redis 即展示网络设备块（从 Redis 按 IP 读，与 snmp.collect.enabled 无关）
-        result.put("snmpEnabled", snmpStatsService != null);
+        // Redis 可读：SnmpStatsService 已注入且内部有可用的 StringRedisTemplate 时才能从 Redis 拉网络设备指标
+        boolean snmpRedisOk = snmpStatsService != null && snmpStatsService.isRedisAvailable();
+        result.put("snmpEnabled", snmpRedisOk);
+        result.put("snmpCollectEnabled", deviceSnmpCollectService != null);
         return result;
+    }
+
+    private static boolean hasCpuOrMem(DeviceStatsService.DeviceStats s) {
+        return s != null && (s.getCpuPercent() != null || s.getMemoryPercent() != null);
+    }
+
+    private static boolean notBlank(String s) {
+        return s != null && !s.isBlank();
     }
 
     /** 饼图数据：数据来源（Linux/网络）、CPU 分布、内存分布 */
@@ -299,7 +345,7 @@ public class MetricsController {
         for (Device d : devices) {
             String id = String.valueOf(d.getId());
             String source = statsSource.get(id);
-            if ("snmp".equals(source)) snmpCount++;
+            if ("snmp".equals(source) || "ssh".equals(source)) snmpCount++;
             else if ("telegraf".equals(source)) linuxCount++;
             Map<String, Object> s = stats.get(id);
             if (s != null) {
@@ -315,7 +361,7 @@ public class MetricsController {
         }
         List<Map<String, Object>> sourcePie = List.of(
                 Map.<String, Object>of("name", "Linux 设备（InfluxDB/SSH）", "value", linuxCount),
-                Map.<String, Object>of("name", "网络设备（Redis）", "value", snmpCount)
+                Map.<String, Object>of("name", "网络设备（SNMP/SSH）", "value", snmpCount)
         );
         List<Map<String, Object>> cpuPie = List.of(
                 Map.<String, Object>of("name", "0-30% 正常", "value", cpuLow),
@@ -343,8 +389,17 @@ public class MetricsController {
                 }
             });
         }
-        String msg = deviceSshCollectService != null
-                ? "已提交采集任务，请稍后刷新查看"
+        if (deviceSnmpCollectService != null) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    deviceSnmpCollectService.collectAllDevicesAndSaveToRedis();
+                } catch (Exception e) {
+                    log.warn("异步 SNMP 采集异常: {}", e.getMessage());
+                }
+            });
+        }
+        String msg = (deviceSshCollectService != null || deviceSnmpCollectService != null)
+                ? "已提交采集任务（含网络设备 SNMP 时将在后台写 Redis），请约 10～30 秒后刷新本页查看"
                 : "已触发采集，请刷新页面或等待数秒";
         return Map.of("success", true, "message", msg);
     }

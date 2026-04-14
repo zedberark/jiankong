@@ -36,6 +36,7 @@ public class AlertService {
 
     private final AlertRuleRepository alertRuleRepository;
     private final AlertHistoryRepository alertHistoryRepository;
+    private final AuditService auditService;
     @Autowired(required = false)
     private RemediationService remediationService;
     @Autowired(required = false)
@@ -94,6 +95,9 @@ public class AlertService {
                     .message(msg)
                     .build();
             alertHistoryRepository.save(history);
+            auditService.logAs("SYSTEM_ALERT", "ALERT_HISTORY_CREATED", "alert_history", history.getId(),
+                    String.format("规则触发：ruleId=%s, deviceId=%s, metric=device_status, value=%s, severity=%s, msg=%s",
+                            rule.getId(), device.getId(), event, history.getSeverity(), msg));
             log.info("Device status alert: ruleId={}, deviceId={}, event={}", rule.getId(), device.getId(), event);
             if (remediationService != null) {
                 remediationService.runRemediationAsync(rule, device, history);
@@ -186,6 +190,9 @@ public class AlertService {
                                     .message(msg)
                                     .build();
                             alertHistoryRepository.save(history);
+                            auditService.logAs("SYSTEM_ALERT", "ALERT_HISTORY_CREATED", "alert_history", history.getId(),
+                                    String.format("规则触发：ruleId=%s, deviceId=%s, metric=%s, value=%.2f, condition=%s, severity=%s, msg=%s",
+                                            rule.getId(), deviceId, metricKey, value, cond, history.getSeverity(), msg));
                             log.info("Metric alert: ruleId={}, deviceId={}, {}={}, condition={}", rule.getId(), deviceId, metricKey, value, cond);
                             if (remediationService != null) {
                                 remediationService.runRemediationAsync(rule, device, history);
@@ -201,6 +208,9 @@ public class AlertService {
                             h.setStatus(AlertHistory.AlertStatus.resolved);
                             h.setEndTime(LocalDateTime.now());
                             alertHistoryRepository.save(h);
+                            auditService.logAs("SYSTEM_ALERT", "ALERT_HISTORY_RESOLVED", "alert_history", h.getId(),
+                                    String.format("告警恢复：ruleId=%s, deviceId=%s, metric=%s, value=%.2f, condition=%s",
+                                            rule.getId(), deviceId, metricKey, value, cond));
                         });
                     }
                 }
@@ -208,7 +218,7 @@ public class AlertService {
         }
     }
 
-    /** 与前端 /metrics/realtime 一致：Linux 用 DeviceStatsService，网络设备用 Redis/SSH 缓存；仅保留在 maxAgeMs 内更新的数据，只按「当前当时」评估。 */
+    /** 与前端 /metrics/realtime 一致：Linux 用 DeviceStatsService；网络设备优先 Redis（SNMP），再 SSH；仅保留在 maxAgeMs 内更新的数据。 */
     private Map<Long, DeviceStatsService.DeviceStats> buildStatsSnapshotForAlert(List<Device> devices, long maxAgeMs) {
         Map<Long, DeviceStatsService.DeviceStats> merged = new HashMap<>();
         if (deviceStatsService != null) {
@@ -218,21 +228,27 @@ public class AlertService {
                 }
             }
         }
+        Map<Long, DeviceStatsService.DeviceStats> snmpByDeviceId = Map.of();
+        if (snmpStatsService != null) {
+            try {
+                snmpByDeviceId = snmpStatsService.getStatsFromRedisByIp(devices);
+            } catch (Exception e) {
+                log.debug("告警评估读取 Redis SNMP 失败: {}", e.getMessage());
+            }
+        }
+        long now = System.currentTimeMillis();
         for (Device d : devices) {
             if (d.getId() == null) continue;
             if (d.getType() != null && d.getType() == Device.DeviceType.server) continue;
             if (merged.containsKey(d.getId())) continue;
             String ip = d.getIp() != null ? d.getIp().trim() : "";
             if (ip.isEmpty()) continue;
-            DeviceStatsService.DeviceStats s = null;
-            if (deviceSshCollectService != null) {
-                s = deviceSshCollectService.getStatsByIp(ip);
-            }
-            if (s == null && snmpStatsService != null) {
-                Map<Long, DeviceStatsService.DeviceStats> byRedis = snmpStatsService.getStatsFromRedisByIp(List.of(d));
-                s = byRedis.get(d.getId());
-            }
-            if (s != null && isStatsCurrent(s, maxAgeMs)) {
+            DeviceStatsService.DeviceStats snmpRow = snmpByDeviceId.get(d.getId());
+            DeviceStatsService.DeviceStats sshRow = deviceSshCollectService != null
+                    ? deviceSshCollectService.getStatsByIp(ip) : null;
+            NetworkDeviceStatsMerger.Pick pick = NetworkDeviceStatsMerger.pick(now, maxAgeMs, snmpRow, sshRow);
+            DeviceStatsService.DeviceStats s = pick.stats();
+            if (s != null) {
                 merged.put(d.getId(), s);
             }
         }
@@ -304,6 +320,9 @@ public class AlertService {
             h.setStatus(AlertHistory.AlertStatus.resolved);
             h.setEndTime(LocalDateTime.now());
             alertHistoryRepository.save(h);
+            auditService.logAs("SYSTEM_ALERT", "ALERT_HISTORY_RESOLVED", "alert_history", h.getId(),
+                    String.format("自动修复后告警恢复：ruleId=%s, deviceId=%s, metric=%s, value=%.2f, condition=%s",
+                            ruleId, deviceId, metricKey, value, rule.getCondition()));
             log.info("自动修复后自动已处理告警：ruleId={} deviceId={} metric={} value={} condition={}",
                     ruleId, deviceId, metricKey, value, rule.getCondition());
         });

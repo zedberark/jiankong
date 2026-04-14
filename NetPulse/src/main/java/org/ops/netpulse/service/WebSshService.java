@@ -15,6 +15,7 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -27,6 +28,52 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class WebSshService {
 
     private static final int TELNET_PORT = 23;
+    /**
+     * 兼容老旧网络设备（如部分 IOSv 镜像）只支持的 SHA1 KEX。
+     * 放在末尾作为回退，优先仍使用更安全的新算法。
+     */
+    private static final String SSH_KEX_COMPAT_LIST = String.join(",",
+            "curve25519-sha256",
+            "curve25519-sha256@libssh.org",
+            "ecdh-sha2-nistp256",
+            "ecdh-sha2-nistp384",
+            "ecdh-sha2-nistp521",
+            "diffie-hellman-group-exchange-sha256",
+            "diffie-hellman-group16-sha512",
+            "diffie-hellman-group18-sha512",
+            "diffie-hellman-group14-sha256",
+            "diffie-hellman-group14-sha1",
+            "diffie-hellman-group-exchange-sha1",
+            "diffie-hellman-group1-sha1"
+    );
+    /** 兼容老设备仅支持的主机密钥算法。 */
+    private static final String SSH_SERVER_HOST_KEY_COMPAT_LIST = String.join(",",
+            "ssh-ed25519",
+            "ecdsa-sha2-nistp256",
+            "ecdsa-sha2-nistp384",
+            "ecdsa-sha2-nistp521",
+            "rsa-sha2-512",
+            "rsa-sha2-256",
+            "ssh-rsa",
+            "ssh-dss"
+    );
+    /** 兼容老设备常见加密算法（含 aes-cbc / 3des-cbc 回退）。 */
+    private static final String SSH_CIPHER_COMPAT_LIST = String.join(",",
+            "aes128-ctr",
+            "aes192-ctr",
+            "aes256-ctr",
+            "aes128-cbc",
+            "aes192-cbc",
+            "aes256-cbc",
+            "3des-cbc"
+    );
+    /** 兼容老设备 MAC 算法。 */
+    private static final String SSH_MAC_COMPAT_LIST = String.join(",",
+            "hmac-sha2-256",
+            "hmac-sha2-512",
+            "hmac-sha1",
+            "hmac-md5"
+    );
     /** Telnet IAC NOP，用于保活，避免设备侧空闲断开会话 */
     private static final byte[] TELNET_IAC_NOP = new byte[] { (byte) 255, (byte) 241 };
     private static final int KEEPALIVE_SEC = 45;
@@ -47,7 +94,7 @@ public class WebSshService {
             @Value("${webssh.ssh-connect-timeout-ms:20000}") int sshConnectTimeoutMs,
             @Value("${webssh.ssh-channel-connect-timeout-ms:15000}") int sshChannelConnectTimeoutMs,
             @Value("${webssh.telnet-connect-timeout-ms:20000}") int telnetConnectTimeoutMs,
-            @Value("${webssh.ssh-session-timeout-ms:30000}") int sshSessionSocketTimeoutMs) {
+            @Value("${webssh.ssh-session-timeout-ms:0}") int sshSessionSocketTimeoutMs) {
         this.deviceRepository = deviceRepository;
         this.sshConnectTimeoutMs = sshConnectTimeoutMs;
         this.sshChannelConnectTimeoutMs = sshChannelConnectTimeoutMs;
@@ -76,27 +123,92 @@ public class WebSshService {
         return createSshSession(device, port, out);
     }
 
+    /** 依次尝试多种 PTY/终端类型：部分设备对 xterm 报 SSH_MSG_DISCONNECT(2) 协议错误，改用 vt100 或无 PTY 可连上。 */
+    private static final List<PtyProfile> SSH_SHELL_PROFILES = List.of(
+            new PtyProfile(true, "xterm", 120, 40),
+            new PtyProfile(true, "vt100", 80, 24),
+            new PtyProfile(true, "ansi", 80, 24),
+            new PtyProfile(false, null, 0, 0)
+    );
+
+    private record PtyProfile(boolean usePty, String term, int cols, int rows) {}
+
     private Optional<ShellSessionHolder> createSshSession(Device device, int port, OutputStream out) throws JSchException, IOException {
+        Session session = newConnectedSshSession(device, port);
+        JSchException lastError = null;
+        for (PtyProfile profile : SSH_SHELL_PROFILES) {
+            if (!session.isConnected()) {
+                session = newConnectedSshSession(device, port);
+            }
+            PipedInputStream pipeIn = new PipedInputStream(64 * 1024);
+            PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
+            ChannelShell channel = null;
+            try {
+                channel = (ChannelShell) session.openChannel("shell");
+                if (profile.usePty) {
+                    channel.setPty(true);
+                    channel.setPtyType(profile.term != null ? profile.term : "vt100");
+                    int c = profile.cols > 0 ? profile.cols : 80;
+                    int r = profile.rows > 0 ? profile.rows : 24;
+                    channel.setPtySize(c, r, c * 8, r * 16);
+                } else {
+                    channel.setPty(false);
+                }
+                channel.setInputStream(pipeIn);
+                channel.setOutputStream(out);
+                channel.connect(sshChannelConnectTimeoutMs);
+                log.info("Web SSH shell 已建立 ip={} profile={} pty={}", device.getIp(), profile.term != null ? profile.term : "none", profile.usePty);
+                return Optional.of(new SshSessionHolder(session, pipeOut));
+            } catch (JSchException e) {
+                lastError = e;
+                log.debug("Web SSH shell 尝试失败 ip={} pty={} term={}: {}", device.getIp(), profile.usePty, profile.term, e.getMessage());
+                try {
+                    if (channel != null && channel.isConnected()) {
+                        channel.disconnect();
+                    }
+                } catch (Exception ignored) {
+                }
+                try {
+                    pipeOut.close();
+                } catch (IOException ignored) {
+                }
+                try {
+                    pipeIn.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
+        try {
+            session.disconnect();
+        } catch (Exception ignored) {
+        }
+        if (lastError != null) {
+            throw lastError;
+        }
+        throw new JSchException("SSH shell 通道打开失败（已尝试多种终端配置）");
+    }
+
+    private Session newConnectedSshSession(Device device, int port) throws JSchException {
         JSch jsch = new JSch();
         Session session = jsch.getSession(device.getSshUser(), device.getIp(), port);
         session.setPassword(device.getSshPassword());
         Properties config = new Properties();
         config.put("StrictHostKeyChecking", "no");
-        // 保活：约 45 秒无数据时发 keepalive，避免设备侧空闲断开会话
+        // 兼容老旧设备仅支持的 SHA1 KEX，避免 Algorithm negotiation fail。
+        config.put("kex", SSH_KEX_COMPAT_LIST);
+        config.put("server_host_key", SSH_SERVER_HOST_KEY_COMPAT_LIST);
+        config.put("cipher.s2c", SSH_CIPHER_COMPAT_LIST);
+        config.put("cipher.c2s", SSH_CIPHER_COMPAT_LIST);
+        config.put("mac.s2c", SSH_MAC_COMPAT_LIST);
+        config.put("mac.c2s", SSH_MAC_COMPAT_LIST);
+        config.put("PreferredAuthentications", "publickey,keyboard-interactive,password");
         config.put("ServerAliveInterval", "45");
         config.put("ServerAliveCountMax", "3");
         session.setConfig(config);
         session.connect(sshConnectTimeoutMs);
-        session.setTimeout(sshSessionSocketTimeoutMs);
-
-        Channel channel = session.openChannel("shell");
-        PipedInputStream pipeIn = new PipedInputStream();
-        PipedOutputStream pipeOut = new PipedOutputStream(pipeIn);
-        channel.setInputStream(pipeIn);
-        channel.setOutputStream(out);
-        channel.connect(sshChannelConnectTimeoutMs);
-
-        return Optional.of(new SshSessionHolder(session, pipeOut));
+        // Web 交互终端默认不设置 socket 读超时（0=无限制），避免空闲时被客户端误判断开。
+        session.setTimeout(Math.max(0, sshSessionSocketTimeoutMs));
+        return session;
     }
 
     private Optional<ShellSessionHolder> createTelnetSession(Device device, OutputStream out) throws IOException {

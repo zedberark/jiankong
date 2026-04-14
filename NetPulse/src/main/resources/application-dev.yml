@@ -4,8 +4,6 @@ spring:
   data:
     redis:
       password: ${REDIS_PASSWORD:root123456}
-  rabbitmq:
-    password: ${RABBITMQ_PASSWORD:root123456}
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}

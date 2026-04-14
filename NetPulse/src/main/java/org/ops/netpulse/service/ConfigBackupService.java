@@ -119,11 +119,15 @@ public class ConfigBackupService {
         m.put("model", d.getModel());
         m.put("groupName", d.getGroupName());
         m.put("remark", d.getRemark());
+        m.put("status", d.getStatus() != null ? d.getStatus().name() : "offline");
+        m.put("lastPollTime", d.getLastPollTime());
+        m.put("snmpVersion", d.getSnmpVersion() != null ? d.getSnmpVersion().name() : "v2c");
         m.put("sshPort", d.getSshPort());
         m.put("snmpPort", d.getSnmpPort());
         m.put("sshUser", d.getSshUser());
         m.put("sshPassword", d.getSshPassword() != null && !d.getSshPassword().isEmpty() ? "***" : "");
         m.put("snmpCommunity", d.getSnmpCommunity());
+        m.put("snmpSecurity", d.getSnmpSecurity() != null && !d.getSnmpSecurity().isBlank() ? "***" : "");
         return m;
     }
 
@@ -263,6 +267,9 @@ public class ConfigBackupService {
             d.setModel(asString(map.get("model"), d.getModel()));
             d.setGroupName(asString(map.get("groupName"), d.getGroupName()));
             d.setRemark(asString(map.get("remark"), d.getRemark()));
+            d.setStatus(parseDeviceStatus(asString(map.get("status"), d.getStatus() != null ? d.getStatus().name() : "offline")));
+            d.setSnmpVersion(parseSnmpVersion(asString(map.get("snmpVersion"),
+                    d.getSnmpVersion() != null ? d.getSnmpVersion().name() : "v2c")));
             d.setSshPort(asInteger(map.get("sshPort"), d.getSshPort() != null ? d.getSshPort() : 22));
             d.setSnmpPort(asInteger(map.get("snmpPort"), d.getSnmpPort() != null ? d.getSnmpPort() : 161));
             d.setSshUser(asString(map.get("sshUser"), d.getSshUser()));
@@ -273,6 +280,10 @@ public class ConfigBackupService {
             String snmpCommunity = asString(map.get("snmpCommunity"), null);
             if (snmpCommunity != null && !snmpCommunity.isBlank() && !"***".equals(snmpCommunity)) {
                 d.setSnmpCommunity(snmpCommunity);
+            }
+            String snmpSecurity = asString(map.get("snmpSecurity"), null);
+            if (snmpSecurity != null && !snmpSecurity.isBlank() && !"***".equals(snmpSecurity)) {
+                d.setSnmpSecurity(snmpSecurity);
             }
             if (d.getDeleted() == null || d.getDeleted()) d.setDeleted(false);
             if (d.getStatus() == null) d.setStatus(Device.DeviceStatus.offline);
@@ -344,6 +355,24 @@ public class ConfigBackupService {
     private Device.DeviceType parseDeviceType(String type) {
         Device.DeviceType t = Device.DeviceType.fromValue(type);
         return t != null ? t : Device.DeviceType.other;
+    }
+
+    private Device.DeviceStatus parseDeviceStatus(String status) {
+        if (status == null || status.isBlank()) return Device.DeviceStatus.offline;
+        try {
+            return Device.DeviceStatus.valueOf(status.trim().toLowerCase());
+        } catch (Exception e) {
+            return Device.DeviceStatus.offline;
+        }
+    }
+
+    private Device.SnmpVersion parseSnmpVersion(String version) {
+        if (version == null || version.isBlank()) return Device.SnmpVersion.v2c;
+        try {
+            return Device.SnmpVersion.valueOf(version.trim().toLowerCase());
+        } catch (Exception e) {
+            return Device.SnmpVersion.v2c;
+        }
     }
 
     private String asString(Object value, String def) {

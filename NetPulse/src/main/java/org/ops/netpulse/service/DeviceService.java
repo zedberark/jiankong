@@ -35,6 +35,12 @@ public class DeviceService {
     public List<String> getGroupNames() {
         return deviceRepository.findDistinctGroupNames();
     }
+    
+    /** 是否存在同一管理 IP 的未删除设备（用于新增去重） */
+    public boolean existsActiveByIp(String ip) {
+        if (ip == null || ip.isBlank()) return false;
+        return !deviceRepository.findByDeletedFalseAndIp(ip.trim()).isEmpty();
+    }
 
     /** 按 ID 查询，已逻辑删除的不返回 */
     public Optional<Device> findById(Long id) {

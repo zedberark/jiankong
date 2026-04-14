@@ -36,10 +36,6 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
         <dependency>
@@ -71,11 +67,11 @@
             <version>6.11.0</version>
         </dependency>
 
-        <!-- SSH for Web SSH -->
+        <!-- SSH：mwiede/jsch 为 JSch 维护分支，补全 KEX/主机密钥算法（rsa-sha2、curve25519 等），避免对端仅支持新算法时出现 Connection reset；CRT 等客户端自带新算法故可连 -->
         <dependency>
-            <groupId>com.jcraft</groupId>
+            <groupId>com.github.mwiede</groupId>
             <artifactId>jsch</artifactId>
-            <version>0.1.55</version>
+            <version>0.2.22</version>
         </dependency>
 
         <!-- Telnet for Web 终端（端口 23 时使用） -->
@@ -103,11 +99,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 

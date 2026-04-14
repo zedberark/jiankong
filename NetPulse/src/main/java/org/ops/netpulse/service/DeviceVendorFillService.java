@@ -49,8 +49,9 @@ public class DeviceVendorFillService {
             if (osRelease == null || osRelease.isBlank()) return;
             String vendor = OsReleaseParser.parseVendor(osRelease);
             if (vendor == null || vendor.isBlank()) return;
-            d.setVendor(vendor);
-            deviceRepository.save(d);
+            if (d.getId() != null) {
+                deviceRepository.updateVendorById(d.getId(), vendor);
+            }
             log.info("自动写入厂商 id={} ip={} vendor={}", d.getId(), d.getIp(), vendor);
         } catch (Exception e) {
             log.debug("自动获取厂商失败 id={}: {}", d.getId(), e.getMessage());

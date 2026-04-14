@@ -33,6 +33,11 @@ public class SnmpStatsService {
         this.redisTemplate = snmpTemplate != null ? snmpTemplate : defaultTemplate;
     }
 
+    /** 实时指标接口用：无 Redis 模板时不应提示「可展示 SNMP 指标」 */
+    public boolean isRedisAvailable() {
+        return redisTemplate != null;
+    }
+
     /**
      * 按设备 IP 从 Redis 读取 CPU、内存。
      * 优先从 device:*（如 device:R1）读取：扫描 key，用 Hash 中的 ip 匹配设备，取 cpu、mem、collect_time；
@@ -78,14 +83,19 @@ public class SnmpStatsService {
                     String cpu = getUtf8(map, "cpu");
                     String memory = getUtf8(map, "memory");
                     String lastCollect = getUtf8(map, "lastCollectTime");
+                    String ifIn = getUtf8(map, "ifInOctetsTotal");
+                    String ifOut = getUtf8(map, "ifOutOctetsTotal");
                     long updatedAt = parseCollectTime(lastCollect);
                     Double cpuPercent = parsePercent(cpu);
                     Double memPercent = parsePercent(memory);
                     // 有任意有效数值则展示；若仅有 lastCollectTime（采集过但解析失败）也返回，便于前端显示「已采集、无解析结果」
-                    if (cpuPercent != null || memPercent != null || (lastCollect != null && !lastCollect.isBlank())) {
+                    if (cpuPercent != null || memPercent != null || (lastCollect != null && !lastCollect.isBlank())
+                            || (ifIn != null && !ifIn.isBlank()) || (ifOut != null && !ifOut.isBlank())) {
                         DeviceStats s = new DeviceStats();
                         s.setCpuPercent(cpuPercent);
                         s.setMemoryPercent(memPercent);
+                        s.setIfInOctetsTotal(ifIn);
+                        s.setIfOutOctetsTotal(ifOut);
                         s.setUpdatedAt(updatedAt > 0 ? updatedAt : System.currentTimeMillis());
                         out.put(missing.get(i).getId(), s);
                     }

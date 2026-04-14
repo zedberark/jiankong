@@ -67,8 +67,6 @@ public class MonitorService {
                 int status = rtt >= 0 ? 1 : 0;
                 DeviceStatus newStatus = rtt < 0 ? DeviceStatus.offline : (rtt > 800 ? DeviceStatus.warning : DeviceStatus.normal);
                 deviceRepository.updateStatusAndLastPollTime(d.getId(), newStatus, now);
-                d.setStatus(newStatus);
-                d.setLastPollTime(now);
                 if (alertService != null && previousStatus != newStatus) {
                     alertService.onDeviceStatusChange(d, previousStatus, newStatus);
                 }
@@ -86,8 +84,6 @@ public class MonitorService {
                 log.warn("Collect failed for device {}: {}", d.getName(), e.getMessage());
                 DeviceStatus previousStatus = d.getStatus();
                 deviceRepository.updateStatusAndLastPollTime(d.getId(), DeviceStatus.offline, now);
-                d.setLastPollTime(now);
-                d.setStatus(DeviceStatus.offline);
                 if (alertService != null && previousStatus != DeviceStatus.offline) {
                     alertService.onDeviceStatusChange(d, previousStatus, DeviceStatus.offline);
                 }
@@ -107,8 +103,6 @@ public class MonitorService {
         LocalDateTime now = LocalDateTime.now();
         DeviceStatus newStatus = rtt < 0 ? DeviceStatus.offline : (rtt > 800 ? DeviceStatus.warning : DeviceStatus.normal);
         deviceRepository.updateStatusAndLastPollTime(d.getId(), newStatus, now); // 仅更新状态与轮询时间，不覆盖 name 等字段
-        d.setStatus(newStatus);
-        d.setLastPollTime(now);
         if (alertService != null && previousStatus != newStatus) {
             alertService.onDeviceStatusChange(d, previousStatus, newStatus);
         }

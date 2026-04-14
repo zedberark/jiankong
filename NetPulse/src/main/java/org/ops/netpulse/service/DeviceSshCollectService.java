@@ -86,8 +86,30 @@ public class DeviceSshCollectService {
         return deviceId != null && unsupportedVendorSkipSince.containsKey(deviceId);
     }
 
-    private static final Pattern HUAWEI_CPU = Pattern.compile("(?:CPU Usage|CPU utilization for ten seconds)\\s*:\\s*([\\d.]+)\\s*%");
-    private static final Pattern HUAWEI_MEM = Pattern.compile("Memory Using Percentage Is\\s*:\\s*(\\d+)\\s*%");
+    /** 华为旧版 / 部分交换机 */
+    private static final Pattern HUAWEI_CPU_LEGACY = Pattern.compile(
+            "(?:CPU Usage|CPU utilization for ten seconds)\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
+    /** 华为常见：CPU utilization for five seconds: 28%: one minute: …（VRP5/8 常见） */
+    private static final Pattern HUAWEI_CPU_FIVE_SEC = Pattern.compile(
+            "CPU utilization for five seconds\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
+    /** 华为：CPU Usage            : 28% Max: … */
+    private static final Pattern HUAWEI_CPU_USAGE_LINE = Pattern.compile(
+            "CPU\\s+Usage\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
+    /**
+     * 表格：Index / busy cycle / five seconds / one minute / five minutes<br>
+     * 例：0       7%       6%              7%               6%
+     */
+    private static final Pattern HUAWEI_CPU_TABLE_ROW = Pattern.compile(
+            "(?m)^\\s*(\\d+)\\s+([\\d.]+)%\\s+([\\d.]+)%\\s+([\\d.]+)%\\s+([\\d.]+)%\\s*$");
+
+    private static final Pattern HUAWEI_MEM = Pattern.compile(
+            "Memory Using Percentage Is\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
+    /** 诊断视图等：Used Ratio For Memory : 95% */
+    private static final Pattern HUAWEI_MEM_RATIO = Pattern.compile(
+            "Used Ratio For Memory\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
+    /** 无 Is 的变体 */
+    private static final Pattern HUAWEI_MEM_PCT = Pattern.compile(
+            "Memory Using Percentage\\s*:\\s*([\\d.]+)\\s*%", Pattern.CASE_INSENSITIVE);
     private static final Pattern CISCO_CPU = Pattern.compile("CPU utilization for five seconds\\s*:\\s*(\\d+)%");
     /** Cisco show memory: Head Total(b) Used(b) Free(b) - 取 Processor 行 Used/Total */
     private static final Pattern CISCO_MEM = Pattern.compile("Processor\\s+\\S+\\s+(\\d+)\\s+(\\d+)\\s+(\\d+)");
@@ -104,6 +126,22 @@ public class DeviceSshCollectService {
     private static final String[] VERSION_COMMANDS = new String[] { "display version", "show version" };
     /** 厂商关键字（按优先级），解析到则设 vendor */
     private static final String[] VENDOR_KEYWORDS = new String[] { "Huawei", "H3C", "Comware", "Cisco", "Ruijie", "Juniper" };
+    /** 未识别厂商时的 CPU 通用探测命令（按常见设备优先级）。 */
+    private static final String[] CPU_FALLBACK_COMMANDS = new String[] {
+            "display cpu-usage",
+            "dis cpu-usage",
+            "show processes cpu",
+            "show cpu",
+            "display cpu"
+    };
+    /** 未识别厂商时的内存通用探测命令（按常见设备优先级）。 */
+    private static final String[] MEMORY_FALLBACK_COMMANDS = new String[] {
+            "display memory-usage",
+            "dis memory-usage",
+            "show memory",
+            "display memory",
+            "show processes memory"
+    };
 
     /** 采集到非支持厂商（非思科/华为/锐捷/华三）的设备 ID，后续采集跳过且不写入设备表 */
     private final Map<Long, Long> unsupportedVendorSkipSince = new ConcurrentHashMap<>();
@@ -249,20 +287,25 @@ public class DeviceSshCollectService {
 
         String vendorForCmd = resolveVendorForCmd(d);
         if (vendorForCmd.isBlank()) {
-            log.warn("SSH 采集跳过：无法识别厂商 id={} ip={}", d.getId(), ip);
-            return;
+            log.info("厂商未识别，启用通用命令探测 id={} ip={}", d.getId(), ip);
         }
-        log.info("开始 SSH/Telnet 采集：id={} ip={} name={} vendor={}（采 CPU/内存，写缓存）", d.getId(), ip, d.getName(), vendorForCmd);
-        String cpuCmd = getCpuCommand(vendorForCmd);
-        String memCmd = getMemoryCommand(vendorForCmd);
+        String vendorLog = vendorForCmd.isBlank() ? "unknown" : vendorForCmd;
+        log.info("开始 SSH/Telnet 采集：id={} ip={} name={} vendor={}（采 CPU/内存，写缓存）", d.getId(), ip, d.getName(), vendorLog);
 
-        String cpuOut = cpuCmd != null ? batchCommandService.runCommand(d, cpuCmd) : null;
-        String memOut = memCmd != null ? batchCommandService.runCommand(d, memCmd) : null;
-
-        String cpu = parseCpu(cpuOut, vendorForCmd);
-        String memory = parseMemory(memOut, vendorForCmd);
+        String cpu = "-";
+        String memory = "-";
+        for (String cmd : getCpuCommands(vendorForCmd)) {
+            String out = batchCommandService.runCommand(d, cmd);
+            cpu = parseCpu(out, vendorForCmd);
+            if (!"-".equals(cpu)) break;
+        }
+        for (String cmd : getMemoryCommands(vendorForCmd)) {
+            String out = batchCommandService.runCommand(d, cmd);
+            memory = parseMemory(out, vendorForCmd);
+            if (!"-".equals(memory)) break;
+        }
         if ("-".equals(cpu) && "-".equals(memory)) {
-            log.warn("SSH 采集解析失败：CPU/内存命令输出未匹配到数值 id={} ip={} vendor={}，请核对厂商命令或正则", d.getId(), ip, vendorForCmd);
+            log.warn("SSH 采集解析失败：CPU/内存命令输出未匹配到数值 id={} ip={} vendor={}，请核对厂商命令或正则", d.getId(), ip, vendorLog);
         }
 
         // 写入内存缓存并追加写入 Redis
@@ -309,10 +352,16 @@ public class DeviceSshCollectService {
         String ip = d.getIp().trim();
         String detectedVendor = parseVendor(terminalOutput);
         if (detectedVendor != null && (d.getVendor() == null || d.getVendor().isBlank())) {
-            d.setVendor(detectedVendor);
             String model = parseModel(terminalOutput);
+            if (d.getId() != null) {
+                if (model != null && !model.isBlank()) {
+                    deviceRepository.updateVendorAndModelById(d.getId(), detectedVendor, model);
+                } else {
+                    deviceRepository.updateVendorById(d.getId(), detectedVendor);
+                }
+            }
+            d.setVendor(detectedVendor);
             if (model != null && !model.isBlank()) d.setModel(model);
-            deviceRepository.save(d);
             log.info("Web SSH 写入：已用终端输出回写设备厂商 id={} ip={} vendor={}", d.getId(), ip, detectedVendor);
         }
         String vendorForCmd = (detectedVendor != null ? detectedVendor : (d.getVendor() != null ? d.getVendor() : "")).toLowerCase(Locale.ROOT);
@@ -379,7 +428,13 @@ public class DeviceSshCollectService {
             if (detectedModel != null && !detectedModel.isBlank()) {
                 d.setModel(detectedModel);
             }
-            deviceRepository.save(d);
+            if (d.getId() != null) {
+                if (detectedModel != null && !detectedModel.isBlank()) {
+                    deviceRepository.updateVendorAndModelById(d.getId(), detectedVendor, detectedModel);
+                } else {
+                    deviceRepository.updateVendorById(d.getId(), detectedVendor);
+                }
+            }
             log.info("已用自查结果回写设备厂商 id={} ip={} vendor={} model={}", d.getId(), d.getIp(), detectedVendor, detectedModel);
             return vLower;
         }
@@ -439,11 +494,37 @@ public class DeviceSshCollectService {
         return "display memory-usage";
     }
 
+    /** 厂商已识别时用单命令，未知厂商时按通用命令列表多轮探测。 */
+    private static List<String> getCpuCommands(String vendor) {
+        if (vendor != null && !vendor.isBlank()) {
+            if (vendor.contains("huawei") || vendor.contains("h3c")) {
+                return List.of("display cpu-usage", "dis cpu-usage", "display cpu");
+            }
+            if (vendor.contains("cisco")) return List.of("show processes cpu", "show cpu");
+            if (vendor.contains("ruijie")) return List.of("show cpu");
+            return List.of(getCpuCommand(vendor));
+        }
+        return List.of(CPU_FALLBACK_COMMANDS);
+    }
+
+    /** 厂商已识别时用单命令，未知厂商时按通用命令列表多轮探测。 */
+    private static List<String> getMemoryCommands(String vendor) {
+        if (vendor != null && !vendor.isBlank()) {
+            if (vendor.contains("huawei") || vendor.contains("h3c")) {
+                return List.of("display memory-usage", "dis memory-usage", "display memory");
+            }
+            if (vendor.contains("cisco")) return List.of("show memory", "show processes memory");
+            if (vendor.contains("ruijie")) return List.of("show memory");
+            return List.of(getMemoryCommand(vendor));
+        }
+        return List.of(MEMORY_FALLBACK_COMMANDS);
+    }
+
     private static String parseCpu(String output, String vendor) {
         if (output == null || output.isBlank()) return "-";
         if (vendor.contains("huawei") || vendor.contains("h3c")) {
-            Matcher m = HUAWEI_CPU.matcher(output);
-            if (m.find()) return m.group(1).trim();
+            String v = parseHuaweiH3cCpu(output);
+            if (!"-".equals(v)) return v;
         }
         if (vendor.contains("cisco")) {
             Matcher m = CISCO_CPU.matcher(output);
@@ -458,11 +539,29 @@ public class DeviceSshCollectService {
         return "-";
     }
 
+    /**
+     * 华为/H3C {@code display cpu-usage} 各版本差异大，按常见格式依次尝试。
+     */
+    private static String parseHuaweiH3cCpu(String output) {
+        Matcher m = HUAWEI_CPU_FIVE_SEC.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        m = HUAWEI_CPU_USAGE_LINE.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        m = HUAWEI_CPU_LEGACY.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        m = HUAWEI_CPU_TABLE_ROW.matcher(output);
+        if (m.find()) {
+            // 列：Index、busy cycle、five seconds、one minute、five minutes → 取第 3 个百分比
+            return m.group(3).trim();
+        }
+        return "-";
+    }
+
     private static String parseMemory(String output, String vendor) {
         if (output == null || output.isBlank()) return "-";
         if (vendor.contains("huawei") || vendor.contains("h3c")) {
-            Matcher m = HUAWEI_MEM.matcher(output);
-            if (m.find()) return m.group(1).trim();
+            String v = parseHuaweiH3cMemory(output);
+            if (!"-".equals(v)) return v;
         }
         if (vendor.contains("cisco")) {
             Matcher m = CISCO_MEM.matcher(output);
@@ -482,6 +581,31 @@ public class DeviceSshCollectService {
         if (m.find()) return m.group(1).trim();
         m = Pattern.compile("([\\d.]+)\\s*%").matcher(output);
         if (m.find()) return m.group(1).trim();
+        return "-";
+    }
+
+    /** 华为/H3C {@code display memory-usage} 多版本文案。 */
+    private static String parseHuaweiH3cMemory(String output) {
+        Matcher m = HUAWEI_MEM.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        m = HUAWEI_MEM_RATIO.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        m = HUAWEI_MEM_PCT.matcher(output);
+        if (m.find()) return m.group(1).trim();
+        // 仅有 Total / Used 字节时推算百分比
+        m = Pattern.compile(
+                "System Total Memory Is:\\s*(\\d+)\\s*bytes\\s*\\n?\\s*Total Memory Used Is:\\s*(\\d+)\\s*bytes",
+                Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(output);
+        if (m.find()) {
+            try {
+                long total = Long.parseLong(m.group(1));
+                long used = Long.parseLong(m.group(2));
+                if (total > 0) {
+                    int pct = (int) Math.round(used * 100.0 / total);
+                    return String.valueOf(Math.min(100, Math.max(0, pct)));
+                }
+            } catch (NumberFormatException ignored) {}
+        }
         return "-";
     }
 }

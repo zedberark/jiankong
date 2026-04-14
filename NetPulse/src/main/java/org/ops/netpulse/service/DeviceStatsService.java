@@ -53,6 +53,10 @@ public class DeviceStatsService {
         private Double memoryPercent;
         private Double diskPercent;
         private long updatedAt;
+        /** SNMP：ifHCInOctets 各接口 Counter 之和（字符串，避免 Counter64 溢出） */
+        private String ifInOctetsTotal;
+        /** SNMP：ifHCOutOctets 各接口 Counter 之和 */
+        private String ifOutOctetsTotal;
     }
 
     /** 启动后 1 分钟首次采集，之后每 3 分钟；先读 InfluxDB（Telegraf），再对未命中且在线的设备用 SSH 补采；离线不采集 */

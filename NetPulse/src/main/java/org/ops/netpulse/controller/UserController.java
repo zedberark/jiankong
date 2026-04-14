@@ -59,10 +59,15 @@ public class UserController {
 
     @PutMapping("/{id}")
     public ResponseEntity<SysUser> update(@PathVariable Long id, @RequestBody UserDto dto) {
-        if (userService.findById(id).isEmpty()) return ResponseEntity.notFound().build();
-        SysUser u = dto.toEntity();
-        u.setId(id);
-        SysUser saved = userService.save(u, dto.getRoleIds());
+        var existingOpt = userService.findById(id);
+        if (existingOpt.isEmpty()) return ResponseEntity.notFound().build();
+        SysUser existing = existingOpt.get();
+        // 合并更新：仅覆盖本次明确修改字段，避免空字段把原值清掉后刷新回退。
+        if (dto.getUsername() != null && !dto.getUsername().isBlank()) existing.setUsername(dto.getUsername().trim());
+        if (dto.getPassword() != null && !dto.getPassword().isBlank()) existing.setPassword(dto.getPassword());
+        if (dto.getEmail() != null) existing.setEmail(dto.getEmail());
+        if (dto.getEnabled() != null) existing.setEnabled(dto.getEnabled());
+        SysUser saved = userService.save(existing, dto.getRoleIds());
         saveNotifyLevels(id, dto.getAlertNotifyLevels());
         fillNotifyLevels(saved);
         auditService.log("UPDATE_USER", "user", id, "username=" + (saved.getUsername() != null ? saved.getUsername() : ""));
