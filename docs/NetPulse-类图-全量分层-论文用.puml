@@ -1,0 +1,199 @@
+@startuml NetPulse_类图_全量分层_论文用
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam ArrowThickness 1.0
+skinparam shadowing false
+skinparam roundcorner 6
+skinparam nodesep 35
+skinparam ranksep 35
+hide empty methods
+left to right direction
+scale max 2000 width
+
+title NetPulse 类图（全量分层版：Controller / Service / Repository / Entity）
+
+package "① 控制层 Controller" #dae8fc {
+  class AuthController
+  class UserController
+  class RoleController
+  class DeviceController
+  class AlertController
+  class MetricsController
+  class MetricController
+  class HealthController
+  class BatchCommandController
+  class AiChatController
+  class InspectionController
+  class ConfigBackupController
+  class SystemConfigController
+  class ApiSettingsController
+  class AuditLogController
+  class ExportController
+  class AlarmRulesController
+}
+
+package "② 业务层 Service" #d5e8d4 {
+  class UserService
+  class RoleMenuService
+  class DeviceService
+  class MonitorService
+  class DeviceStatsService
+  class DeviceSshCollectService
+  class DeviceVendorFillService
+  class SnmpStatsService
+  class AlertService
+  class AlertEmailService
+  class RemediationService
+  class AiChatService
+  class InspectionService
+  class InspectionScheduleService
+  class BatchCommandService
+  class WebSshService
+  class SystemConfigService
+  class ConfigBackupService
+  class AuditService
+  class AuditLogQueryService
+  class InfluxDbMetricService
+  class LocalHostStatsService
+}
+
+package "③ 持久层 Repository" #fff2cc {
+  interface SysUserRepository
+  interface RoleRepository
+  interface UserRoleRepository
+  interface RoleMenuRepository
+  interface DeviceRepository
+  interface AlertRuleRepository
+  interface AlertHistoryRepository
+  interface AlertTemplateRepository
+  interface AiChatSessionRepository
+  interface AiChatMessageRepository
+  interface InspectionReportRepository
+  interface SystemConfigRepository
+  interface ConfigBackupRepository
+  interface AuditLogRepository
+  interface AlarmRulesRepository
+}
+
+package "④ 领域层 Entity" #e1d5e7 {
+  class SysUser
+  class Role
+  class UserRole
+  class RoleMenu
+  class Device
+  class AlertRule
+  class AlertHistory
+  class AlertTemplate
+  class AiChatSession
+  class AiChatMessage
+  class InspectionReport
+  class InspectionItem
+  class SystemConfig
+  class ConfigBackup
+  class AuditLog
+  class AlarmRules
+}
+
+' ---------- Controller -> Service ----------
+AuthController --> UserService
+AuthController --> AuditService
+UserController --> UserService
+RoleController --> RoleMenuService
+DeviceController --> DeviceService
+DeviceController --> BatchCommandService
+DeviceController --> AuditService
+AlertController --> AlertService
+AlertController --> AuditService
+MetricsController --> DeviceStatsService
+MetricController --> InfluxDbMetricService
+HealthController --> DeviceService
+BatchCommandController --> BatchCommandService
+AiChatController --> AiChatService
+AiChatController --> InspectionService
+AiChatController --> AuditService
+InspectionController --> InspectionService
+InspectionController --> AuditService
+ConfigBackupController --> ConfigBackupService
+SystemConfigController --> SystemConfigService
+ApiSettingsController --> SystemConfigService
+AuditLogController --> AuditLogQueryService
+ExportController --> AuditLogQueryService
+ExportController --> AlertService
+AlarmRulesController --> AlarmRulesRepository
+AlarmRulesController --> AuditService
+
+' ---------- Service -> Service ----------
+UserService --> RoleMenuService
+DeviceService --> MonitorService
+DeviceService --> DeviceVendorFillService
+DeviceStatsService --> SnmpStatsService
+DeviceStatsService --> DeviceSshCollectService
+AlertService --> AlertEmailService
+AlertService --> RemediationService
+AiChatService --> DeviceService
+AiChatService --> DeviceStatsService
+AiChatService --> SystemConfigService
+InspectionService --> MonitorService
+InspectionScheduleService --> InspectionService
+WebSshService --> DeviceService
+ConfigBackupService --> DeviceService
+ConfigBackupService --> AlertService
+ConfigBackupService --> SystemConfigService
+AuditLogQueryService --> AuditService
+
+' ---------- Service -> Repository ----------
+UserService --> SysUserRepository
+UserService --> UserRoleRepository
+UserService --> RoleRepository
+RoleMenuService --> RoleMenuRepository
+DeviceService --> DeviceRepository
+MonitorService --> DeviceRepository
+AlertService --> AlertRuleRepository
+AlertService --> AlertHistoryRepository
+AlertService --> AlertTemplateRepository
+AiChatService --> AiChatSessionRepository
+AiChatService --> AiChatMessageRepository
+InspectionService --> InspectionReportRepository
+SystemConfigService --> SystemConfigRepository
+ConfigBackupService --> ConfigBackupRepository
+AuditService --> AuditLogRepository
+AuditLogQueryService --> AuditLogRepository
+
+' ---------- Repository -> Entity ----------
+AlarmRulesRepository ..> AlarmRules
+SysUserRepository ..> SysUser
+RoleRepository ..> Role
+UserRoleRepository ..> UserRole
+RoleMenuRepository ..> RoleMenu
+DeviceRepository ..> Device
+AlertRuleRepository ..> AlertRule
+AlertHistoryRepository ..> AlertHistory
+AlertTemplateRepository ..> AlertTemplate
+AiChatSessionRepository ..> AiChatSession
+AiChatMessageRepository ..> AiChatMessage
+InspectionReportRepository ..> InspectionReport
+SystemConfigRepository ..> SystemConfig
+ConfigBackupRepository ..> ConfigBackup
+AuditLogRepository ..> AuditLog
+
+' ---------- Entity relations ----------
+SysUser "1" -- "n" UserRole
+Role "1" -- "n" UserRole
+Role "1" -- "n" RoleMenu
+
+AlertRule "n" --> "0..1" Device : deviceId
+AlertRule "1" --> "n" AlertHistory
+AlertTemplate "1" ..> "n" AlertRule : 模板应用
+Device "1" --> "n" AlertHistory
+
+AiChatSession "1" *-- "n" AiChatMessage
+InspectionReport "1" *-- "n" InspectionItem
+InspectionItem "n" ..> "1" Device : device快照
+
+SysUser "1" ..> "n" ConfigBackup : userId
+SysUser "1" ..> "n" AuditLog : username
+SystemConfig ..> AiChatSession : systemContext来源
+
+@enduml

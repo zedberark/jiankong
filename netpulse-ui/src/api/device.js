@@ -38,7 +38,17 @@ export function getDevicesHealth() {
   return request.get('/devices/health')
 }
 
+/** 立即刷新全部设备在线状态（触发后端一次可达性探测） */
+export function refreshDeviceStatus() {
+  return request.post('/devices/refresh-status', {})
+}
+
 /** 通过 SSH 获取 Linux 主机名并更新设备名称（仅类型为服务器的设备，需已配置 SSH 且在线）。须 POST 到 /api/devices/:id/fetch-hostname。 */
 export function fetchDeviceHostname(id) {
   return request.post(`/devices/${id}/fetch-hostname`, {})
+}
+
+/** 对指定网络设备执行一次 SNMP 采集并写入 Redis（需后端 snmp.collect.enabled=true 且已配置 SNMP） */
+export function collectDeviceSnmp(id) {
+  return request.post(`/devices/${id}/collect-snmp`, {})
 }

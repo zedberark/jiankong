@@ -60,7 +60,11 @@
               <option value="">全部分组</option>
               <option v-for="g in groupList" :key="g" :value="g">{{ g }}</option>
             </select>
-            <span class="selected-count">已选 {{ selectedIds.length ? 1 : 0 }}/1</span>
+            <label class="check-all" v-if="devices.length">
+              <input type="checkbox" :checked="allSelected" @change="toggleAllDevices($event)" />
+              全选
+            </label>
+            <span class="selected-count">已选 {{ selectedIds.length }}/{{ devices.length }}</span>
           </div>
           <div class="device-grid-wrap">
             <div v-if="devices.length" class="device-grid">
@@ -69,7 +73,7 @@
                   type="checkbox"
                   class="device-card-check"
                   :checked="selectedIds.includes(d.id)"
-                  @change="selectSingleDevice(d.id, $event)"
+                  @change="toggleDeviceSelection(d.id, $event)"
                 />
                 <div class="device-card-body">
                   <span class="device-card-name" :title="d.name">{{ d.name }}</span>
@@ -124,7 +128,8 @@
           <span class="summary-total">共 {{ run.results.length }} 台</span>
         </div>
         <div v-for="r in run.results" :key="run.id + '-' + r.deviceId" class="result-item" :class="r.success ? 'ok' : 'err'">
-          <strong>{{ r.deviceName || ('设备#' + r.deviceId) }}</strong>: {{ r.success ? (r.output || '(无输出)') : (r.error || '连接或执行异常') }}
+          <div class="result-title">===== {{ r.deviceName || ('设备#' + r.deviceId) }} ({{ r.success ? '成功' : '失败' }}) =====</div>
+          <pre class="result-output">{{ formatBatchResult(r) }}</pre>
         </div>
       </div>
     </div>
@@ -162,6 +167,9 @@ const currentDeviceId = computed(() =>
 
 const currentServer = computed(() =>
   devices.value.find(d => d.id === currentDeviceId.value) || null
+)
+const allSelected = computed(() =>
+  devices.value.length > 0 && selectedIds.value.length === devices.value.length
 )
 
 const terminalRef = ref(null)
@@ -264,13 +272,20 @@ function typeLabel(t) {
   return m[t] || t || '-'
 }
 
-function selectSingleDevice(deviceId, event) {
+function toggleDeviceSelection(deviceId, event) {
   const checked = event?.target?.checked === true
-  if (!checked) {
-    selectedIds.value = []
-    return
+  if (checked) {
+    if (!selectedIds.value.includes(deviceId)) {
+      selectedIds.value = [...selectedIds.value, deviceId]
+    }
+  } else {
+    selectedIds.value = selectedIds.value.filter(id => id !== deviceId)
   }
-  selectedIds.value = [deviceId]
+}
+
+function toggleAllDevices(event) {
+  const checked = event?.target?.checked === true
+  selectedIds.value = checked ? devices.value.map(d => d.id) : []
 }
 
 function onQuickCommandSelect() {
@@ -408,8 +423,14 @@ function connectTerminal(deviceId) {
   ws.onerror = () => {
     terminal?.writeln('\r\n[错误] WebSocket 连接失败，请检查后端与 SSH 配置。\r\n')
   }
-  ws.onclose = () => {
-    terminal?.writeln('\r\n连接已关闭。\r\n')
+  ws.onclose = (ev) => {
+    const hint =
+      ev.code === 1006
+        ? '（异常断开，多为代理/后端未转发 WebSocket 或 SSH 通道被设备关闭）'
+        : ev.code === 1000
+          ? ''
+          : `（code=${ev.code}${ev.reason ? ' ' + ev.reason : ''}）`
+    terminal?.writeln('\r\n连接已关闭。' + hint + '\r\n')
     terminalConnected.value = false
     ws = null
   }
@@ -469,6 +490,14 @@ function execute() {
     .finally(() => { executing.value = false })
 }
 
+/** 批量执行结果格式化：按设备独立块展示，避免多设备输出混在一行。 */
+function formatBatchResult(item) {
+  if (!item) return '(无输出)'
+  const text = item.success ? (item.output || '') : (item.error || '连接或执行异常')
+  const val = String(text || '').trim()
+  return val === '' ? '(无输出)' : val
+}
+
 onMounted(() => {
   load()
   nextTick(() => {
@@ -490,8 +519,12 @@ onUnmounted(() => {
   terminal?.dispose()
 })
 
-watch(currentDeviceId, (id) => {
+watch(currentDeviceId, (id, prev) => {
   if (!id) {
+    disconnectTerminal()
+    return
+  }
+  if (prev != null && id !== prev) {
     disconnectTerminal()
   }
 })
@@ -642,7 +675,19 @@ watch(currentDeviceId, (id) => {
 .run-summary .summary-ok { color: #059669; }
 .run-summary .summary-err { color: #dc2626; }
 .run-summary .summary-total { color: #6b7280; }
-.result-item { padding: 0.5rem 0; border-bottom: 1px solid #f9fafb; font-size: 0.875rem; white-space: pre-wrap; }
+.result-item { padding: 0.65rem 0; border-bottom: 1px solid #f3f4f6; font-size: 0.875rem; }
+.result-title { font-weight: 700; margin-bottom: 0.4rem; }
+.result-output {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px dashed #e5e7eb;
+  background: #fafafa;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
 .result-item.ok { color: #059669; }
 .result-item.err { color: #dc2626; }
 </style>

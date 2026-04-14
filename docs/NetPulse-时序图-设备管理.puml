@@ -1,0 +1,38 @@
+@startuml NetPulse_时序图_设备管理
+!theme plain
+skinparam sequenceMessageAlign center
+
+title NetPulse — 时序图：保存设备（新增或编辑）
+
+actor "运维用户" as U
+participant "浏览器" as FE
+participant "DeviceController\n/api/devices" as DC
+participant "DeviceService" as DS
+participant "DeviceRepository" as DR
+participant "AuditService" as AD
+database "MySQL" as DB
+
+U -> FE: 填写设备表单、提交
+FE -> DC: POST 或 PUT /api/devices\n{ Device JSON }
+
+DC -> DS: save(device)
+
+DS -> DR: save(entity)
+DR -> DB: INSERT 或 UPDATE
+DB --> DR: 持久化结果
+DR --> DS: Device
+
+DS --> DC: Device
+
+DC -> AD: log(CREATE_DEVICE 或 UPDATE_DEVICE, ...)
+AD -> DB: INSERT audit_log
+
+DC --> FE: 200 Device
+
+note right of FE
+  仅 ADMIN 可在表单中查看/提交
+  SSH、SNMP 密码等敏感字段；
+  见 DeviceList 权限逻辑。
+end note
+
+@enduml

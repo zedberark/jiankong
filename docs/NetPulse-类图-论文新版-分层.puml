@@ -1,0 +1,203 @@
+@startuml NetPulse_类图_论文新版_分层
+' =============================================================================
+' 【整合版】仅两个大区：应用层（控制+服务）| 数据层（仓储+实体），减少分散
+' 类名：上行中文、下行英文；关系旁中文标注
+' =============================================================================
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam ArrowThickness 1.0
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam nodesep 22
+skinparam ranksep 28
+skinparam packagePadding 8
+hide empty methods
+top to bottom direction
+scale max 2200 width
+
+title NetPulse 后端核心类图（双区整合：应用层 + 数据层）
+
+package "应用层（控制器 + 业务服务）" #E8F4FC {
+    class AuthController as "登录认证控制器\nAuthController"
+    class UserController as "用户管理控制器\nUserController"
+    class RoleController as "角色权限控制器\nRoleController"
+    class DeviceController as "设备管理控制器\nDeviceController"
+    class AlertController as "告警管理控制器\nAlertController"
+    class MetricsController as "监控汇总控制器\nMetricsController"
+    class MetricController as "时序指标控制器\nMetricController"
+    class HealthController as "健康检查控制器\nHealthController"
+    class BatchCommandController as "批量命令控制器\nBatchCommandController"
+    class AiChatController as "AI对话控制器\nAiChatController"
+    class InspectionController as "系统巡检控制器\nInspectionController"
+    class ConfigBackupController as "配置备份控制器\nConfigBackupController"
+    class SystemConfigController as "系统参数控制器\nSystemConfigController"
+    class ApiSettingsController as "API设置控制器\nApiSettingsController"
+    class AuditLogController as "审计日志控制器\nAuditLogController"
+    class ExportController as "数据导出控制器\nExportController"
+    class AlarmRulesController as "告警规则(CRUD)控制器\nAlarmRulesController"
+    class SshWebSocketHandler as "SSH终端处理器\nSshWebSocketHandler" <<终端>>
+
+    class UserService as "用户服务\nUserService"
+    class RoleMenuService as "角色菜单服务\nRoleMenuService"
+    class DeviceService as "设备业务服务\nDeviceService"
+    class MonitorService as "监控探测服务\nMonitorService"
+    class DeviceStatsService as "设备指标统计\nDeviceStatsService"
+    class DeviceSshCollectService as "SSH指标采集\nDeviceSshCollectService"
+    class DeviceVendorFillService as "设备厂商回填\nDeviceVendorFillService"
+    class SnmpStatsService as "SNMP指标服务\nSnmpStatsService"
+    class AlertService as "告警业务服务\nAlertService"
+    class AlertEmailService as "告警邮件服务\nAlertEmailService"
+    class RemediationService as "告警自动修复\nRemediationService"
+    class AiChatService as "AI对话服务\nAiChatService"
+    class InspectionService as "巡检业务服务\nInspectionService"
+    class InspectionScheduleService as "巡检定时调度\nInspectionScheduleService"
+    class BatchCommandService as "批量命令执行\nBatchCommandService"
+    class WebSshService as "Web终端服务\nWebSshService"
+    class SystemConfigService as "系统配置服务\nSystemConfigService"
+    class ConfigBackupService as "配置备份服务\nConfigBackupService"
+    class AuditService as "审计写入服务\nAuditService"
+    class AuditLogQueryService as "审计查询服务\nAuditLogQueryService"
+    class InfluxDbMetricService as "Influx时序查询\nInfluxDbMetricService"
+    class LocalHostStatsService as "本机指标服务\nLocalHostStatsService"
+}
+
+package "数据层（仓储 + 领域实体）" #FFF4E0 {
+    interface SysUserRepository as "用户表仓储\nSysUserRepository"
+    interface RoleRepository as "角色表仓储\nRoleRepository"
+    interface UserRoleRepository as "用户角色关联仓储\nUserRoleRepository"
+    interface RoleMenuRepository as "角色菜单仓储\nRoleMenuRepository"
+    interface DeviceRepository as "设备表仓储\nDeviceRepository"
+    interface AlertRuleRepository as "告警规则仓储\nAlertRuleRepository"
+    interface AlertHistoryRepository as "告警历史仓储\nAlertHistoryRepository"
+    interface AlertTemplateRepository as "告警模板仓储\nAlertTemplateRepository"
+    interface AiChatSessionRepository as "AI会话仓储\nAiChatSessionRepository"
+    interface AiChatMessageRepository as "AI消息仓储\nAiChatMessageRepository"
+    interface InspectionReportRepository as "巡检报告仓储\nInspectionReportRepository"
+    interface SystemConfigRepository as "系统配置仓储\nSystemConfigRepository"
+    interface ConfigBackupRepository as "配置备份仓储\nConfigBackupRepository"
+    interface AuditLogRepository as "审计日志仓储\nAuditLogRepository"
+    interface AlarmRulesRepository as "告警规则表仓储\nAlarmRulesRepository"
+
+    class SysUser as "系统用户\nSysUser"
+    class Role as "角色\nRole"
+    class UserRole as "用户角色关联\nUserRole"
+    class RoleMenu as "角色菜单\nRoleMenu"
+    class Device as "设备\nDevice"
+    class AlertRule as "告警规则\nAlertRule"
+    class AlertHistory as "告警历史\nAlertHistory"
+    class AlertTemplate as "告警模板\nAlertTemplate"
+    class AiChatSession as "AI会话\nAiChatSession"
+    class AiChatMessage as "AI消息\nAiChatMessage"
+    class InspectionReport as "巡检报告\nInspectionReport"
+    class InspectionItem as "巡检明细\nInspectionItem"
+    class SystemConfig as "系统配置项\nSystemConfig"
+    class ConfigBackup as "配置备份记录\nConfigBackup"
+    class AuditLog as "审计日志\nAuditLog"
+    class AlarmRules as "告警规则(管理表)\nAlarmRules"
+}
+
+' ---------- 关系 ----------
+SshWebSocketHandler --> WebSshService : 终端会话
+SshWebSocketHandler ..> DeviceSshCollectService : 可选解析输出
+
+AuthController --> UserService : 调用
+AuthController --> AuditService : 登录审计
+UserController --> UserService : 调用
+RoleController --> RoleMenuService : 调用
+DeviceController --> DeviceService : 调用
+DeviceController --> BatchCommandService : 调用
+DeviceController --> AuditService : 审计
+AlertController --> AlertService : 调用
+AlertController --> AuditService : 审计
+MetricsController --> DeviceStatsService : 调用
+MetricController --> InfluxDbMetricService : 调用
+HealthController --> DeviceService : 调用
+BatchCommandController --> BatchCommandService : 调用
+BatchCommandController --> AuditService : 审计
+AiChatController --> AiChatService : 调用
+AiChatController --> InspectionService : 巡检摘要
+AiChatController --> AuditService : 审计
+InspectionController --> InspectionService : 调用
+InspectionController --> AuditService : 审计
+ConfigBackupController --> ConfigBackupService : 调用
+SystemConfigController --> SystemConfigService : 调用
+ApiSettingsController --> SystemConfigService : 调用
+AuditLogController --> AuditLogQueryService : 调用
+ExportController --> AuditLogQueryService : 调用
+ExportController --> AlertService : 导出告警
+
+AlarmRulesController --> AlarmRulesRepository : 持久化
+AlarmRulesController --> AuditService : 审计
+
+UserService --> RoleMenuService : 协作
+DeviceService --> MonitorService : 协作
+DeviceService --> DeviceVendorFillService : 协作
+DeviceStatsService --> SnmpStatsService : 协作
+DeviceStatsService --> DeviceSshCollectService : 协作
+AlertService --> AlertEmailService : 通知
+AlertService --> RemediationService : 修复
+AiChatService --> DeviceService : 设备上下文
+AiChatService --> DeviceStatsService : 指标上下文
+AiChatService --> SystemConfigService : API配置
+InspectionService --> MonitorService : 探测
+InspectionScheduleService --> InspectionService : 定时巡检
+WebSshService --> DeviceService : 连接参数
+ConfigBackupService --> DeviceService : 备份设备
+ConfigBackupService --> AlertService : 备份规则
+ConfigBackupService --> SystemConfigService : 备份配置
+AuditLogQueryService --> AuditService : 审计封装
+
+UserService --> SysUserRepository : 持久化
+UserService --> UserRoleRepository : 持久化
+UserService --> RoleRepository : 持久化
+RoleMenuService --> RoleMenuRepository : 持久化
+DeviceService --> DeviceRepository : 持久化
+MonitorService --> DeviceRepository : 持久化
+AlertService --> AlertRuleRepository : 持久化
+AlertService --> AlertHistoryRepository : 持久化
+AlertService --> AlertTemplateRepository : 持久化
+AiChatService --> AiChatSessionRepository : 持久化
+AiChatService --> AiChatMessageRepository : 持久化
+InspectionService --> InspectionReportRepository : 持久化
+SystemConfigService --> SystemConfigRepository : 持久化
+ConfigBackupService --> ConfigBackupRepository : 持久化
+AuditService --> AuditLogRepository : 持久化
+AuditLogQueryService --> AuditLogRepository : 查询
+AlarmRulesRepository ..> AlarmRules : ORM
+
+SysUserRepository ..> SysUser : ORM
+RoleRepository ..> Role : ORM
+UserRoleRepository ..> UserRole : ORM
+RoleMenuRepository ..> RoleMenu : ORM
+DeviceRepository ..> Device : ORM
+AlertRuleRepository ..> AlertRule : ORM
+AlertHistoryRepository ..> AlertHistory : ORM
+AlertTemplateRepository ..> AlertTemplate : ORM
+AiChatSessionRepository ..> AiChatSession : ORM
+AiChatMessageRepository ..> AiChatMessage : ORM
+InspectionReportRepository ..> InspectionReport : ORM
+SystemConfigRepository ..> SystemConfig : ORM
+ConfigBackupRepository ..> ConfigBackup : ORM
+AuditLogRepository ..> AuditLog : ORM
+
+SysUser "1" -- "n" UserRole : 用户-角色
+Role "1" -- "n" UserRole : 分配
+Role "1" -- "n" RoleMenu : 菜单
+AlertRule "n" --> "0..1" Device : 关联设备
+AlertRule "1" --> "n" AlertHistory : 产生记录
+Device "1" --> "n" AlertHistory : 设备告警
+AiChatSession "1" *-- "n" AiChatMessage : 会话-消息
+InspectionReport "1" *-- "n" InspectionItem : 报告-明细
+InspectionItem "n" ..> "1" Device : 快照
+SysUser "1" ..> "n" ConfigBackup : 创建备份
+
+legend right
+  |= 结构 |
+  | **上区**：控制器、终端、全部服务（一框） |
+  | **下区**：仓储与实体（一框，不再分子包） |
+  | 类名：中文 + 英文两行 |
+endlegend
+
+@enduml

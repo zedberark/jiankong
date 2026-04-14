@@ -1,0 +1,141 @@
+@startuml NetPulse_类图_核心业务_完整版
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam ArrowThickness 1.2
+skinparam nodesep 30
+skinparam ranksep 30
+skinparam classFontSize 10
+skinparam packageFontSize 11
+skinparam shadowing false
+skinparam roundcorner 8
+hide empty methods
+left to right direction
+scale max 1800 width
+
+title NetPulse — 核心业务类图（完整版，类关系全覆盖）
+
+package "用户与权限" #dae8fc {
+  class SysUser <<Entity>> {
+    -id : Long
+    -username : String
+    -enabled : Boolean
+  }
+  class Role <<Entity>> {
+    -id : Long
+    -code : String
+    -name : String
+  }
+  class UserRole <<Entity>> {
+    -userId : Long
+    -roleId : Long
+  }
+  class RoleMenu <<Entity>> {
+    -roleId : Long
+    -menuCode : String
+  }
+  SysUser -[hidden]-> Role
+  Role -[hidden]-> UserRole
+  UserRole -[hidden]-> RoleMenu
+}
+
+package "设备与告警" #e8f5e9 {
+  class Device <<Entity>> {
+    -id : Long
+    -name : String
+    -ip : String
+    -type : DeviceType
+    -status : DeviceStatus
+  }
+  class AlertRule <<Entity>> {
+    -id : Long
+    -deviceId : Long
+    -metricKey : String
+    -condition : String
+  }
+  class AlertHistory <<Entity>> {
+    -id : Long
+    -ruleId : Long
+    -deviceId : Long
+    -status : AlertStatus
+  }
+  class AlertTemplate <<Entity>> {
+    -id : Long
+    -name : String
+    -content : String
+    -severity : Severity
+  }
+  Device -[hidden]-> AlertRule
+  AlertRule -[hidden]-> AlertHistory
+  AlertHistory -[hidden]-> AlertTemplate
+}
+
+package "AI 与巡检" #ede9fe {
+  class AiChatSession <<Entity>> {
+    -id : Long
+    -username : String
+    -title : String
+  }
+  class AiChatMessage <<Entity>> {
+    -id : Long
+    -sessionId : Long
+    -role : String
+    -content : String
+  }
+  class InspectionReport <<Entity>> {
+    -id : Long
+    -groupName : String
+    -totalCount : int
+    -aiSummary : String
+  }
+  class InspectionItem <<Entity>> {
+    -id : Long
+    -reportId : Long
+    -deviceId : Long
+    -status : String
+  }
+  AiChatSession -[hidden]-> AiChatMessage
+  AiChatMessage -[hidden]-> InspectionReport
+  InspectionReport -[hidden]-> InspectionItem
+}
+
+package "配置与审计" #fff8e1 {
+  class SystemConfig <<Entity>> {
+    -configKey : String
+    -configValue : String
+  }
+  class ConfigBackup <<Entity>> {
+    -id : Long
+    -name : String
+    -userId : Long
+  }
+  class AuditLog <<Entity>> {
+    -id : Long
+    -username : String
+    -action : String
+  }
+  SystemConfig -[hidden]-> ConfigBackup
+  ConfigBackup -[hidden]-> AuditLog
+}
+
+' 关系（确保每个类都有关系表达）
+SysUser "1" -- "n" UserRole
+Role "1" -- "n" UserRole
+Role "1" -- "n" RoleMenu
+
+AlertRule "n" --> "0..1" Device : deviceId
+AlertRule "1" --> "n" AlertHistory
+Device "1" --> "n" AlertHistory
+AlertTemplate "1" ..> "n" AlertRule : 应用模板
+
+AiChatSession "1" *-- "n" AiChatMessage
+InspectionReport "1" *-- "n" InspectionItem
+InspectionItem "n" ..> "1" Device : 设备快照
+
+SysUser "1" ..> "n" AuditLog : username
+SysUser "1" ..> "n" ConfigBackup : userId
+SystemConfig ..> AiChatSession : systemContext来源
+SystemConfig ..> AlertTemplate : 邮件/通知配置
+
+@enduml

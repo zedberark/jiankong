@@ -1,0 +1,75 @@
+@startuml NetPulse_类图_论文指定四层_UML逻辑视图
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam nodesep 32
+skinparam ranksep 30
+hide empty members
+top to bottom direction
+scale max 1500 width
+
+title NetPulse 分层架构类图（逻辑视图）
+
+note bottom
+  本图为 **UML 逻辑分层示意**：仅出现题目要求的类名，不展开属性、方法与实现技术。
+  控制层只依赖业务层；业务层访问声明的仓储接口；仓储映射实体；实体层表达领域关联。
+end note
+
+package "«layer» 控制层" #dae8fc {
+  class DeviceController <<Controller>>
+  class AlertController <<Controller>>
+  class WebSSHController <<Controller>>
+}
+
+package "«layer» 业务层" #d5e8d4 {
+  class DeviceService <<Service>>
+  class CollectService <<Service>>
+  class AlertService <<Service>>
+}
+
+package "«layer» 持久层" #fff2cc {
+  interface DeviceRepository <<Repository>>
+  interface AlertRuleRepository <<Repository>>
+}
+
+package "«layer» 实体层" #e1d5e7 {
+  class Device <<Entity>>
+  class AlertRule <<Entity>>
+  class AlertHistory <<Entity>>
+}
+
+' ---------- 纵向依赖：控制层 → 业务层 ----------
+DeviceController --> DeviceService : 依赖
+DeviceController --> CollectService : 依赖
+AlertController --> AlertService : 依赖
+WebSSHController --> DeviceService : 依赖
+
+' ---------- 业务层 → 持久层 ----------
+DeviceService --> DeviceRepository : 依赖
+CollectService --> DeviceRepository : 依赖
+AlertService --> AlertRuleRepository : 依赖
+AlertService --> DeviceRepository : 依赖
+
+' ---------- 持久层 → 实体（映射）----------
+DeviceRepository ..> Device : 映射
+AlertRuleRepository ..> AlertRule : 映射
+
+' ---------- 业务层与关键实体（评估、落库语义）----------
+AlertService ..> AlertHistory : 维护
+
+' ---------- 实体层关联 ----------
+AlertRule "0..*" --> "0..1" Device : 关联设备
+AlertRule "1" --> "0..*" AlertHistory : 触发产生
+Device "1" --> "0..*" AlertHistory : 归属
+
+legend right
+  |= 读图 |
+  | **实线箭头**：层间依赖或调用方向 |
+  | **虚线箭头**：映射、或对实体的直接维护语义 |
+  | **关联**：仅画在实体层，表达业务含义 |
+endlegend
+
+@enduml

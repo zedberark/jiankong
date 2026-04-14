@@ -1,0 +1,41 @@
+@startuml NetPulse_时序图_AI运维助手
+!theme plain
+skinparam sequenceMessageAlign center
+
+title NetPulse — 时序图：AI 运维助手发送消息（会话内对话）
+
+actor "运维用户" as U
+participant "浏览器" as FE
+participant "AiChatController\n/api/ai" as AI
+participant "AiChatService" as SVC
+participant "AiChatSessionRepository" as SR
+participant "AiChatMessageRepository" as MR
+participant "DeviceService 等\n(组装上下文)" as CTX
+participant "大模型 API\n(千问/DeepSeek)" as LLM
+
+U -> FE: 选择会话、输入问题
+FE -> AI: POST /api/ai/chat\n{ sessionId, content }\nHeader: Authorization
+
+AI -> SVC: chat(...)
+
+SVC -> SR: 校验会话归属、取会话
+SR --> SVC: AiChatSession
+
+SVC -> MR: 保存用户消息(user)
+SVC -> CTX: 拉取设备/告警等上下文快照\n(按需)
+CTX --> SVC: 上下文字符串
+
+SVC -> MR: 追加历史消息(可选)
+SVC -> LLM: HTTP 对话请求\n(含 system + 上下文 + 用户问题)
+
+alt LLM 调用成功
+  LLM --> SVC: 助手回复文本
+  SVC -> MR: 保存助手消息(assistant)
+  SVC --> AI: 回复 DTO
+  AI --> FE: 200 展示回答
+else 超时或失败
+  SVC --> AI: 错误信息
+  AI --> FE: 4xx/5xx 或业务提示
+end
+
+@enduml

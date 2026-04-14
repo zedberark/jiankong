@@ -3,7 +3,7 @@
     <header class="page-header">
       <div class="header-left">
         <h2 class="page-title">设备列表</h2>
-        <button type="button" class="primary small" @click="load" :disabled="loading">
+        <button type="button" class="primary small" @click="refreshNow" :disabled="loading">
           {{ loading ? '刷新中…' : '刷新' }}
         </button>
         <label class="header-filter">
@@ -82,6 +82,7 @@
                   <button v-if="isLinuxWithoutName(d) && d.status !== 'offline'" type="button" class="op-btn op-fetch-hostname" @click="doFetchHostname(d.id)" :disabled="fetchHostnameId === d.id" :title="fetchHostnameId === d.id ? '获取中…' : '通过 SSH 获取主机名并填入设备名称'">{{ fetchHostnameId === d.id ? '获取中…' : '获取主机名' }}</button>
                   <button type="button" class="op-btn op-edit" @click="openForm(d)" title="编辑">编辑</button>
                   <button type="button" class="op-btn op-ping" @click="doPing(d.id)" :disabled="!!pingId" :title="pingId === d.id ? '检测中…' : 'Ping 检测'">{{ pingId === d.id ? 'Ping中…' : 'Ping' }}</button>
+                  <button v-if="deviceHasSnmp(d)" type="button" class="op-btn op-snmp" @click="doCollectSnmp(d.id)" :disabled="snmpCollectId === d.id" :title="snmpCollectId === d.id ? '采集中…' : '立即 SNMP 采集并写入 Redis（需后端开启 snmp.collect）'">{{ snmpCollectId === d.id ? 'SNMP…' : 'SNMP采集' }}</button>
                   <button type="button" class="op-btn op-delete" @click="doDelete(d.id)" title="删除">删除</button>
                 </div>
               </td>
@@ -177,13 +178,12 @@
             </div>
           </section>
           <section class="form-section">
-            <h4 class="form-section-title">SSH / Telnet</h4>
+            <h4 class="form-section-title">SSH</h4>
             <div class="form-row form-row-2">
               <div class="form-group form-group-inline-hint">
                 <label>端口</label>
                 <div class="input-with-hint">
-                  <input v-model.number="form.sshPort" type="number" placeholder="22" title="22=SSH，23=Telnet" />
-                  <span class="form-hint-inline">22=SSH，23=Telnet（同一 Web 终端）</span>
+                  <input v-model.number="form.sshPort" type="number" placeholder="22" />
                 </div>
               </div>
               <div class="form-group">
@@ -192,9 +192,9 @@
               </div>
             </div>
             <div class="form-group" v-if="canSeePassword">
-<label>SSH/Telnet 密码</label>
+<label>SSH 密码</label>
                 <div class="password-wrap">
-                <input v-model="form.sshPassword" :type="showSshPwd ? 'text' : 'password'" placeholder="用于 Web SSH / Telnet" />
+                <input v-model="form.sshPassword" :type="showSshPwd ? 'text' : 'password'" placeholder="用于 Web SSH" />
                 <button type="button" class="pw-toggle" :class="{ visible: showSshPwd }" :title="showSshPwd ? '隐藏密码' : '显示密码'" @click="showSshPwd = !showSshPwd" aria-label="显示/隐藏密码">
                   <svg v-if="showSshPwd" class="pw-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                   <svg v-else class="pw-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -202,19 +202,25 @@
               </div>
             </div>
             <div class="form-group" v-else-if="form.sshUser">
-              <label>SSH/Telnet 新密码</label>
+              <label>SSH 新密码</label>
               <input v-model="form.sshPassword" type="password" placeholder="输入新密码以修改，留空则不修改" />
             </div>
           </section>
           <template v-if="form.type !== 'server'">
             <section class="form-section">
               <h4 class="form-section-title">SNMP</h4>
-              <div class="form-group">
-                <label>版本</label>
-                <select v-model="form.snmpVersion">
-                  <option value="v2c">v2c（社区名）</option>
-                  <option value="v3">v3（用户名 + 认证/加密）</option>
-                </select>
+              <div class="form-row form-row-2">
+                <div class="form-group">
+                  <label>SNMP 端口</label>
+                  <input v-model.number="form.snmpPort" type="number" min="1" max="65535" placeholder="161" title="与设备上 snmpd/agent 监听端口一致，默认 UDP 161" />
+                </div>
+                <div class="form-group">
+                  <label>版本</label>
+                  <select v-model="form.snmpVersion">
+                    <option value="v2c">v2c（社区名）</option>
+                    <option value="v3">v3（用户名 + 认证/加密）</option>
+                  </select>
+                </div>
               </div>
               <div v-if="form.snmpVersion === 'v2c'" class="form-group">
                 <label>社区名</label>
@@ -261,8 +267,8 @@
             </section>
           </template>
           <div class="form-actions">
-            <button type="button" class="btn-secondary" @click="showModal = false">取消</button>
-            <button type="submit" class="btn-primary">保存</button>
+            <button type="button" class="btn-secondary" @click="showModal = false" :disabled="submitting">取消</button>
+            <button type="submit" class="btn-primary" :disabled="submitting">{{ submitting ? '保存中…' : '保存' }}</button>
           </div>
         </form>
       </div>
@@ -327,7 +333,7 @@
  * 仅 ADMIN 可查看/编辑 SSH 与 SNMP 密码；表单提交时 SNMP v3 密码按需写回 snmpSecurity JSON。
  */
 import { ref, computed, watch, onMounted } from 'vue'
-import { getDevices, createDevice, updateDevice, deleteDevice, pingDevice, getDeviceGroups, fetchDeviceHostname } from '../api/device'
+import { getDevices, createDevice, updateDevice, deleteDevice, pingDevice, getDeviceGroups, fetchDeviceHostname, collectDeviceSnmp, refreshDeviceStatus } from '../api/device'
 import { typeLabel, deviceStatusText } from '../utils/deviceLabels'
 import { STORAGE_KEYS } from '../utils/constants'
 import { debounce } from '../utils/debounce'
@@ -432,6 +438,7 @@ const filterGroup = ref('')
 const loading = ref(false)
 const fetchHostnameId = ref(null)
 const pingId = ref(null)
+const snmpCollectId = ref(null)
 const showModal = ref(false)
 const toastVisible = ref(false)
 const toastMessage = ref('')
@@ -447,6 +454,7 @@ const showSshPwd = ref(false)
 const showSnmpAuthPwd = ref(false)
 const showSnmpPrivPwd = ref(false)
 const ipError = ref('')
+const submitting = ref(false)
 const form = ref({
   name: '',
   type: 'server',
@@ -456,6 +464,7 @@ const form = ref({
   sshPassword: '',
   snmpCommunity: '',
   snmpVersion: 'v2c',
+  snmpPort: 161,
   snmpUsername: '',
   snmpAuthPassword: '',
   snmpPrivPassword: '',
@@ -587,6 +596,14 @@ function load() {
 /** 筛选变更时防抖拉取，减少重复请求 */
 const debouncedLoad = debounce(load, 300)
 
+/** 手动刷新：先让后端立即重算在线状态，再刷新列表，避免状态跨模块不同步。 */
+function refreshNow() {
+  loading.value = true
+  refreshDeviceStatus()
+    .catch(() => {})
+    .finally(() => { load() })
+}
+
 /** 打开添加/编辑弹窗：编辑时回填表单，SNMP v3 从 snmpSecurity JSON 解析出用户名与密码（管理员可见） */
 function openForm(device = null) {
   showSshPwd.value = false
@@ -597,6 +614,7 @@ function openForm(device = null) {
   editingDevice.value = device ? { ...device } : null
   if (device) {
     const base = { ...device }
+    if (base.snmpPort == null || base.snmpPort === '') base.snmpPort = 161
     if (device.snmpVersion === 'v3' && device.snmpSecurity) {
       try {
         const sec = typeof device.snmpSecurity === 'string' ? JSON.parse(device.snmpSecurity) : device.snmpSecurity
@@ -614,7 +632,7 @@ function openForm(device = null) {
   } else {
     form.value = {
       name: '', type: 'server', ip: '', sshPort: 22, sshUser: '', sshPassword: '',
-      snmpCommunity: '', snmpVersion: 'v2c', snmpUsername: '', snmpAuthPassword: '', snmpPrivPassword: '',
+      snmpCommunity: '', snmpVersion: 'v2c', snmpPort: 161, snmpUsername: '', snmpAuthPassword: '', snmpPrivPassword: '',
       vendor: '', model: '', remark: '', groupName: '',
     }
   }
@@ -632,6 +650,7 @@ function isValidIpv4(ip) {
 
 /** 提交添加/编辑：非管理员可修改密码但不可查看；留空则不修改原密码。IP 须为规范 IPv4 才能写入。 */
 function submit() {
+  if (submitting.value) return
   const rawIp = form.value.ip
   if (rawIp == null || String(rawIp).trim() === '') {
     ipError.value = '请填写管理 IP'
@@ -683,8 +702,14 @@ function submit() {
   delete payload.snmpUsername
   delete payload.snmpAuthPassword
   delete payload.snmpPrivPassword
+  if (payload.type !== 'server') {
+    const sp = Number(payload.snmpPort)
+    payload.snmpPort = Number.isFinite(sp) && sp > 0 && sp <= 65535 ? sp : 161
+  }
   const api = editingId.value ? updateDevice(editingId.value, payload) : createDevice(payload)
+  submitting.value = true
   api.then(() => { showModal.value = false; load() }).catch(e => showToast(e.response?.data?.message || '保存失败', 'error'))
+    .finally(() => { submitting.value = false })
 }
 
 function doDelete(id) {
@@ -708,6 +733,22 @@ function doFetchHostname(id) {
     })
     .catch(e => showToast(e.response?.data?.message || '获取主机名失败', 'error'))
     .finally(() => { fetchHostnameId.value = null })
+}
+
+function deviceHasSnmp(d) {
+  if (!d || d.type === 'server') return false
+  const c = d.snmpCommunity != null && String(d.snmpCommunity).trim() !== ''
+  const v3 = d.snmpSecurity != null && String(d.snmpSecurity).trim() !== ''
+  return c || v3
+}
+
+function doCollectSnmp(id) {
+  if (snmpCollectId.value) return
+  snmpCollectId.value = id
+  collectDeviceSnmp(id)
+    .then((r) => showToast(r.data?.message || 'SNMP 采集成功，请到「实时指标」查看', 'success'))
+    .catch((e) => showToast(e.response?.data?.message || 'SNMP 采集失败', 'error'))
+    .finally(() => { snmpCollectId.value = null })
 }
 
 /** 对指定设备执行 Ping（后端会更新设备状态），刷新列表后再提示。请求中禁用 Ping 按钮，防止误触多次弹窗。 */
@@ -851,6 +892,8 @@ onMounted(() => {
 .op-btn.op-edit:hover { background: #e0f2fe; box-shadow: 0 1px 4px rgba(2, 132, 199, 0.2); }
 .op-btn.op-ping { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
 .op-btn.op-ping:hover:not(:disabled) { background: #dcfce7; box-shadow: 0 1px 4px rgba(22, 163, 74, 0.2); }
+.op-btn.op-snmp { background: #f0f9ff; border-color: #7dd3fc; color: #0369a1; }
+.op-btn.op-snmp:hover:not(:disabled) { background: #e0f2fe; box-shadow: 0 1px 4px rgba(3, 105, 161, 0.2); }
 .op-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 .op-btn.op-delete { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
 .op-btn.op-delete:hover { background: #fee2e2; box-shadow: 0 1px 4px rgba(220, 38, 38, 0.2); }

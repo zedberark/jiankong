@@ -1,0 +1,147 @@
+@startuml NetPulse_UML_Class_Diagram_BW
+!theme plain
+' 黑白打印友好
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 45
+skinparam ranksep 50
+skinparam roundcorner 4
+skinparam ArrowThickness 1
+
+title NetPulse 监控运维系统 - UML 类图（黑白版）
+
+package "用户与权限" {
+  class SysUser <<实体>> {
+    - id : Long
+    - username : String
+    - enabled : Boolean
+    --
+    + 查询()
+    + 保存()
+  }
+
+  class Role <<实体>> {
+    - id : Long
+    - code : String
+    - name : String
+    --
+    + 查询()
+    + 保存()
+  }
+
+  class UserRole <<实体>> {
+    - userId : Long
+    - roleId : Long
+    --
+    + 绑定()
+    + 解除()
+  }
+
+  class RoleMenu <<实体>> {
+    - roleId : Long
+    - menuCode : String
+    --
+    + 查询()
+    + 保存()
+  }
+}
+
+package "设备与告警" {
+  class Device <<实体>> {
+    - id : Long
+    - name : String
+    - ip : String
+    - type : DeviceType
+    - status : DeviceStatus
+    --
+    + 查询()
+    + 保存()
+  }
+
+  class AlarmRules <<实体>> {
+    - id : Long
+    - ruleName : String
+    - ruleCode : String
+    - alarmType : Integer
+    - monitorObject : String
+    - triggerCondition : String
+    - threshold : BigDecimal
+    - level : Integer
+    - status : Integer
+    --
+    + 查询()
+    + 保存()
+    + 删除()
+  }
+
+  class AlertHistory <<实体>> {
+    - id : Long
+    - ruleId : Long
+    - deviceId : Long
+    - status : AlertStatus
+    - severity : Severity
+    --
+    + 查询()
+    + 标记恢复()
+  }
+}
+
+package "巡检与审计" {
+  class InspectionReport <<实体>> {
+    - id : Long
+    - groupName : String
+    - totalCount : int
+    - aiSummary : String
+    --
+    + 查询()
+  }
+
+  class InspectionItem <<实体>> {
+    - id : Long
+    - reportId : Long
+    - deviceId : Long
+    - status : String
+    --
+    + 查询明细()
+  }
+
+  class AuditLog <<实体>> {
+    - id : Long
+    - username : String
+    - action : String
+    - createTime : LocalDateTime
+    --
+    + 查询()
+    + 导出()
+  }
+}
+
+package "系统配置" {
+  class SystemConfig <<实体>> {
+    - configKey : String
+    - configValue : String
+    --
+    + 查询()
+    + 保存()
+  }
+}
+
+' 关系
+SysUser "1" -- "n" UserRole : 用户拥有角色
+Role "1" -- "n" UserRole : 角色分配用户
+Role "1" -- "n" RoleMenu : 角色菜单
+
+AlarmRules "n" --> "0..1" Device : deviceId
+AlarmRules "1" --> "n" AlertHistory : 产生历史
+Device "1" --> "n" AlertHistory : 设备记录
+
+InspectionReport "1" *-- "n" InspectionItem : 报告含明细
+InspectionItem "n" ..> "1" Device : 设备快照
+
+SysUser "1" ..> "n" AuditLog : 操作主体
+SystemConfig ..> AlarmRules : 通知配置
+
+@enduml

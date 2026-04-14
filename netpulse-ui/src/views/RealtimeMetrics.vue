@@ -5,6 +5,14 @@
       <button class="primary small" @click="throttledRefreshStats" :disabled="statsRefreshing">{{ statsRefreshing ? '刷新中…' : '刷新' }}</button>
     </div>
     <p v-if="lastRefreshMessage" class="last-refresh-msg">{{ lastRefreshMessage }}</p>
+    <div v-if="networkDevicesAll.length" class="snmp-status-bar">
+      <span class="snmp-status-item" :class="{ ok: snmpRedisOk, bad: !snmpRedisOk }">
+        Redis 指标：{{ snmpRedisOk ? '已连接（可读取 SNMP 写入结果）' : '不可用（请配置 Redis 并避免排除 Redis 自动配置）' }}
+      </span>
+      <span class="snmp-status-item" :class="{ ok: snmpCollectEnabled, muted: !snmpCollectEnabled }">
+        SNMP 采集服务：{{ snmpCollectEnabled ? '已启用（定时/刷新/单设备采集会写 Redis）' : '未启用（application 中 snmp.collect.enabled=true 并重启）' }}
+      </span>
+    </div>
     <div class="stats-row">
       <div class="stat-card stat-total">
         <div class="stat-accent"></div>
@@ -95,15 +103,21 @@
           <p class="loading-text">刷新中…</p>
         </div>
       </div>
-      <h3 class="table-heading">网络设备列表（CPU / 内存）</h3>
+      <h3 class="table-heading">网络设备列表（SNMP 指标）</h3>
+      <div v-if="networkWithSnmpConfig.length && !snmpRedisOk" class="table-hint table-hint-warn">
+        当前无法连接 Redis，SNMP 采集结果无法展示。请启动 Redis 并检查 <code>spring.data.redis</code>，不要使用会排除 Redis 的 profile（如 local）除非已单独配置 SNMP 用 Redis。
+      </div>
       <table>
         <thead>
           <tr>
             <th>名称</th>
             <th class="th-sortable" @click="toggleSort('ip')">IP <span class="sort-arrow">{{ sortArrow('ip') }}</span></th>
             <th class="th-sortable" @click="toggleSort('type')">类型 <span class="sort-arrow">{{ sortArrow('type') }}</span></th>
+            <th>指标来源</th>
             <th class="th-sortable" @click="toggleSort('cpu')">CPU <span class="sort-arrow">{{ sortArrow('cpu') }}</span></th>
             <th class="th-sortable" @click="toggleSort('memory')">内存 <span class="sort-arrow">{{ sortArrow('memory') }}</span></th>
+            <th>入流量</th>
+            <th>出流量</th>
             <th>最后采集时间</th>
           </tr>
         </thead>
@@ -112,14 +126,20 @@
             <td>{{ d.name }} <span v-if="(d.status || '') === 'offline'" class="status-offline-tag">（离线）</span></td>
             <td>{{ d.ip }}</td>
             <td>{{ typeLabel(d.type) }}</td>
+            <td class="metric-cell">
+              <span v-if="(d.status || '') === 'offline'" class="metric-na">—</span>
+              <span v-else :class="['src-badge', 'src-' + (statsSource[d.id] || 'na')]">{{ sourceLabel(statsSource[d.id]) }}</span>
+            </td>
             <td class="metric-cell"><span :class="metricClass(stats[d.id]?.cpuPercent)">{{ (d.status || '') === 'offline' ? '—' : formatPercent(stats[d.id]?.cpuPercent) }}</span></td>
             <td class="metric-cell"><span :class="metricClass(stats[d.id]?.memoryPercent)">{{ (d.status || '') === 'offline' ? '—' : formatPercent(stats[d.id]?.memoryPercent) }}</span></td>
+            <td class="metric-cell metric-traffic">{{ (d.status || '') === 'offline' ? '—' : formatOctets(stats[d.id]?.ifInOctetsTotal) }}</td>
+            <td class="metric-cell metric-traffic">{{ (d.status || '') === 'offline' ? '—' : formatOctets(stats[d.id]?.ifOutOctetsTotal) }}</td>
             <td class="stats-time" :class="{ 'stats-time-stale': isStatsStale(stats[d.id]) }">
               <template v-if="(d.status || '') === 'offline'">—</template>
               <template v-else>{{ statsTimeLabel(stats[d.id]) }} <span v-if="isStatsStale(stats[d.id])" class="stats-stale-hint">（较旧）</span></template>
             </td>
           </tr>
-          <tr v-if="!sortedNetworkDevicesByType.length"><td colspan="6" class="empty">暂无网络设备</td></tr>
+          <tr v-if="!sortedNetworkDevicesByType.length"><td colspan="9" class="empty">暂无网络设备</td></tr>
         </tbody>
       </table>
     </div>
@@ -183,6 +203,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick, onActivated } from 'vu
 import * as echarts from 'echarts'
 import { getRealtimeMetrics, refreshRealtimeStats, getMetricsTrend } from '../api/metrics'
 import { getAlertSummary } from '../api/alerts'
+import { getDevices } from '../api/device'
 import { getApiErrorHint, isUnauthorizedError } from '../api/request'
 import { formatTime } from '../utils/systemTimezone'
 import { throttle } from '../utils/debounce'
@@ -191,8 +212,9 @@ const devices = ref([])
 const summary = ref({ normal: 0, warning: 0, critical: 0, offline: 0 })
 const alertSummary = ref({ criticalCount: 0, warningCount: 0, infoCount: 0 })
 const stats = ref({})
-const statsSource = ref({})  /* deviceId -> 'telegraf' | 'snmp' */
-const snmpEnabled = ref(false)
+const statsSource = ref({})  /* deviceId -> 'telegraf' | 'snmp' | 'ssh' */
+const snmpRedisOk = ref(false)
+const snmpCollectEnabled = ref(false)
 const statsRefreshing = ref(false)
 const lastRefreshMessage = ref('')
 const sortBy = ref(null)
@@ -243,15 +265,23 @@ function sortDeviceList(list) {
 
 /** Linux 设备：类型为「服务器」的均为 Linux 设备，表格中展示以便无数据时也能看到并配置 SSH/刷新 */
 const linuxDevices = computed(() =>
-  devices.value.filter(d => d.type === 'server')
+  devices.value.filter(d => normalizeType(d.type) === 'server')
 )
 /** Linux 设备表格只展示在线设备（离线不显示；无指标时仍显示该行，数值为 —） */
 const linuxDevicesOnline = computed(() =>
   linuxDevices.value.filter(d => (d.status || '') !== 'offline')
 )
-/** 网络设备列表只展示在线设备（与 Linux 设备表格一致，离线不显示） */
-const networkDevicesByType = computed(() =>
-  devices.value.filter(d => d.type && d.type !== 'server' && (d.status || '') !== 'offline')
+/** 网络设备（非服务器）：仅显示在线，离线设备不在该表展示 */
+const networkDevicesAll = computed(() =>
+  devices.value.filter(d => normalizeType(d.type) !== 'server' && (d.status || '') !== 'offline')
+)
+/** 已填写 SNMP 社区名或 v3 凭据的网络设备（用于提示） */
+const networkWithSnmpConfig = computed(() =>
+  networkDevicesAll.value.filter(d => {
+    const c = d.snmpCommunity != null && String(d.snmpCommunity).trim() !== ''
+    const v3 = d.snmpSecurity != null && String(d.snmpSecurity).trim() !== ''
+    return c || v3
+  })
 )
 /** 当前在线设备数（normal + warning + critical），与首页仪表盘一致 */
 const groupOnline = computed(() => {
@@ -270,10 +300,10 @@ const firingTotal = computed(() => {
 })
 /** 监控趋势下拉仅展示在线的 Linux 设备（类型为 server 且非离线） */
 const linuxDevicesForTrend = computed(() =>
-  devices.value.filter(d => d.type === 'server' && (d.status || '') !== 'offline')
+  devices.value.filter(d => normalizeType(d.type) === 'server' && (d.status || '') !== 'offline')
 )
 const sortedLinuxDevices = computed(() => sortDeviceList(linuxDevicesOnline.value))
-const sortedNetworkDevicesByType = computed(() => sortDeviceList(networkDevicesByType.value))
+const sortedNetworkDevicesByType = computed(() => sortDeviceList(networkDevicesAll.value))
 
 function toggleSort(field) {
   if (sortBy.value === field) {
@@ -303,6 +333,7 @@ const memChartRef = ref(null)
 let cpuChart = null
 let memChart = null
 let lastRealtimeLoadErrorAt = 0
+let realtimeAbortController = null
 
 function notifyRealtimeErrorOnce(message) {
   const now = Date.now()
@@ -313,7 +344,19 @@ function notifyRealtimeErrorOnce(message) {
 
 function typeLabel(t) {
   const m = { server: '服务器', firewall: '防火墙', switch: '交换机', router: '路由器', other: '其他' }
-  return m[t] || t || '-'
+  const key = normalizeType(t)
+  return m[key] || key || '-'
+}
+
+/** 统一设备类型值：兼容字符串、枚举对象（含 toValue）与空值。 */
+function normalizeType(type) {
+  if (type == null) return ''
+  if (typeof type === 'string') return type.trim().toLowerCase()
+  if (typeof type?.toValue === 'function') {
+    const v = type.toValue()
+    return typeof v === 'string' ? v.trim().toLowerCase() : ''
+  }
+  return String(type).trim().toLowerCase()
 }
 
 function statsTimeLabel(s) {
@@ -347,20 +390,62 @@ function metricClass(v) {
   return 'metric-ok'
 }
 
+function sourceLabel(src) {
+  if (src === 'snmp') return 'SNMP'
+  if (src === 'ssh') return 'SSH'
+  if (src === 'telegraf') return 'Linux'
+  return '—'
+}
+
+function formatOctets(v) {
+  if (v == null || v === '') return '—'
+  const n = Number(String(v).replace(/,/g, ''))
+  if (!Number.isFinite(n) || n < 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let x = n
+  let u = 0
+  while (x >= 1024 && u < units.length - 1) {
+    x /= 1024
+    u++
+  }
+  const shown = u === 0 ? String(Math.round(x)) : (x >= 100 ? x.toFixed(0) : x.toFixed(1))
+  return shown + ' ' + units[u]
+}
+
 function load() {
-  getRealtimeMetrics()
-    .then(r => {
-      devices.value = r.data && r.data.devices ? r.data.devices : []
+  if (realtimeAbortController) realtimeAbortController.abort()
+  realtimeAbortController = new AbortController()
+  getRealtimeMetrics(realtimeAbortController.signal)
+    .then(async (r) => {
+      const realtimeDevices = Array.isArray(r?.data?.devices) ? r.data.devices : []
+      let mergedDevices = realtimeDevices
+      try {
+        // 兜底：设备总表以 /devices 为准，避免实时接口偶发漏设备导致离线网络设备不显示。
+        const listResp = await getDevices({})
+        const allDevices = Array.isArray(listResp?.data) ? listResp.data : []
+        if (allDevices.length > 0) {
+          const byId = new Map(realtimeDevices.filter(d => d?.id != null).map(d => [d.id, d]))
+          mergedDevices = allDevices.map(d => byId.get(d.id) || d)
+        }
+      } catch (_) {
+        // /devices 兜底失败时保留实时接口返回，避免影响页面可用性
+      }
+      devices.value = mergedDevices
       summary.value = r.data && r.data.summary ? r.data.summary : {}
       stats.value = r.data && r.data.stats ? r.data.stats : {}
       statsSource.value = r.data && r.data.statsSource ? r.data.statsSource : {}
-      snmpEnabled.value = r.data && r.data.snmpEnabled === true
+      snmpRedisOk.value = r.data && r.data.snmpEnabled === true
+      snmpCollectEnabled.value = r.data && r.data.snmpCollectEnabled === true
+      realtimeAbortController = null
     })
     .catch((err) => {
+      realtimeAbortController = null
       devices.value = []
       summary.value = {}
       stats.value = {}
       statsSource.value = {}
+      snmpRedisOk.value = false
+      snmpCollectEnabled.value = false
       if (isUnauthorizedError(err)) return
       notifyRealtimeErrorOnce(getApiErrorHint(err, '实时指标加载失败，请检查网络或后端服务'))
     })
@@ -582,6 +667,21 @@ function onVisibilityChange() {
 .metric-mid { color: #d97706; }
 .metric-high { color: #dc2626; }
 .metric-na { color: #94a3b8; }
+.metric-traffic { font-size: 0.8125rem; color: #475569; }
+.snmp-status-bar {
+  display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem;
+  margin-bottom: 1rem; padding: 0.65rem 1rem;
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 0.8125rem;
+}
+.snmp-status-item.ok { color: #047857; font-weight: 500; }
+.snmp-status-item.bad { color: #b45309; font-weight: 500; }
+.snmp-status-item.muted { color: #64748b; }
+.src-badge { display: inline-block; padding: 0.15rem 0.45rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+.src-snmp { background: #dbeafe; color: #1d4ed8; }
+.src-ssh { background: #fef3c7; color: #b45309; }
+.src-telegraf { background: #e0e7ff; color: #4338ca; }
+.src-na { background: #f1f5f9; color: #94a3b8; font-weight: 500; }
+.table-hint-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
 .stats-time { font-size: 0.8125rem; color: #64748b; }
 .stats-time-stale { color: #b45309; }
 .stats-stale-hint { display: block; font-size: 0.75rem; color: #92400e; margin-top: 0.15rem; }

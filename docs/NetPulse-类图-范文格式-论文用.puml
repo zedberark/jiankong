@@ -1,0 +1,126 @@
+@startuml NetPulse_类图_范文格式_论文用
+' =============================================================================
+' 毕业设计论文·单页版：三列独立、无跨包连线，避免线条交叉乱飞
+' 共用服务（MonitorService、AuditService 等）见正文说明，图中从略
+' =============================================================================
+!theme plain
+skinparam backgroundColor white
+skinparam classBackgroundColor #eef0ff
+skinparam classBorderColor #333333
+skinparam classFontSize 9
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam linetype ortho
+skinparam ArrowThickness 1
+skinparam nodesep 18
+skinparam ranksep 22
+skinparam packagePadding 6
+hide empty methods
+left to right direction
+scale max 1100 width
+
+title NetPulse 典型子系统类图（范文格式 · 单页三列·无跨模块连线）
+
+legend bottom
+  三列 **相互独立**，无跨列箭头；列内自上而下为 **控制→业务→仓储→实体**。
+  **MonitorService、AuditService** 等为多模块共用，连线从略以免版面混乱；与实现对应关系见 **NetPulse-类图-论文新版-分层.puml**。
+endlegend
+
+package "（一）设备管理" #FFFFFF {
+  class "④ DeviceController\n【REST】" as DevC {
+    -deviceService : DeviceService
+    --
+    +list/get/save/ping…
+  }
+  class "③ DeviceService\n【业务】" as DevS {
+    -deviceRepository
+    -monitorService …
+    --
+    +findAll/save/pingDevice…
+  }
+  interface "② DeviceRepository\n【仓储】" as DevR {
+    +find…/save…
+  }
+  class "① Device\n【实体】" as DevE {
+    -id -name -ip -status …
+  }
+  DevC -[hidden]down-> DevS
+  DevS -[hidden]down-> DevR
+  DevR -[hidden]down-> DevE
+  DevC --> DevS : 调用
+  DevS --> DevR : 依赖
+  DevR ..> DevE : ORM
+  DevS ..> DevE : 领域对象
+}
+
+package "（二）系统巡检" #FFFFFF {
+  class "⑤ InspectionController\n【REST】" as InsC {
+    -inspectionService
+    --
+    +run/list/detail…
+  }
+  class "④ InspectionService\n【业务】" as InsS {
+    -inspectionReportRepository
+    -deviceRepository -monitorService …
+    --
+    +runInspection/getDetail…
+  }
+  interface "③ InspectionReportRepository\n【仓储】" as IrRepo {
+    +save/find…
+  }
+  class "① InspectionReport\n【实体】" as IrE {
+    -id -groupName -source …
+  }
+  class "② InspectionItem\n【实体】" as IiE {
+    -reportId -deviceId -rttMs …
+  }
+  InsC -[hidden]down-> InsS
+  InsS -[hidden]down-> IrRepo
+  IrRepo -[hidden]down-> IrE
+  IrE -[hidden]right-> IiE
+  InsC --> InsS : 调用
+  InsS --> IrRepo : 依赖
+  IrRepo ..> IrE : ORM
+  IrE "1" *-- "n" IiE : 含明细
+}
+
+package "（三）AI 助手" #FFFFFF {
+  class "⑥ AiChatController\n【REST /ai】" as AiC {
+    -aiChatService
+    --
+    +sessions/chat…
+  }
+  class "⑤ AiChatService\n【业务】" as AiS {
+    -sessionRepository
+    -messageRepository …
+    --
+    +chat/getSessions…
+  }
+  interface "③ AiChatSessionRepository\n【仓储】" as SesRepo {
+    +save/find…
+  }
+  interface "④ AiChatMessageRepository\n【仓储】" as MsgRepo {
+    +save/findBySession…
+  }
+  class "① AiChatSession\n【实体】" as SesE {
+    -id -username -title …
+  }
+  class "② AiChatMessage\n【实体】" as MsgE {
+    -sessionId -role -content …
+  }
+  AiC -[hidden]down-> AiS
+  AiS -[hidden]down-> SesRepo
+  SesRepo -[hidden]right-> MsgRepo
+  SesRepo -[hidden]down-> SesE
+  MsgRepo -[hidden]down-> MsgE
+  SesE -[hidden]right-> MsgE
+  AiC --> AiS : 调用
+  AiS --> SesRepo : 会话
+  AiS --> MsgRepo : 消息
+  SesRepo ..> SesE : ORM
+  MsgRepo ..> MsgE : ORM
+  SesE "1" *-- "n" MsgE : 含消息
+}
+
+@enduml

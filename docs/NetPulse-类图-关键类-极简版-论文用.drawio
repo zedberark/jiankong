@@ -1,0 +1,55 @@
+<mxfile host="app.diagrams.net" modified="2026-04-10T12:00:00.000Z" agent="Mozilla/5.0" version="29.6.6" editor="draw.io">
+  <diagram id="np-key-minimal" name="关键类极简版">
+    <mxGraphModel dx="1426" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="NetPulse 关键类图（黑白极简版）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="20" width="480" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="devc" value="DeviceController&#xa;设备管理控制器&#xa;--&#xa;+list(group)&#xa;+save(device)&#xa;+ping(id)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="190" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="devs" value="DeviceService&#xa;设备业务服务&#xa;--&#xa;+findAll(group)&#xa;+save(device)&#xa;+pingDevice(id)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="300" y="120" width="190" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="devr" value="DeviceRepository&#xa;设备仓储接口&#xa;--&#xa;+findByDeletedFalse()&#xa;+findById(id)&#xa;+save(entity)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="540" y="120" width="210" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mons" value="MonitorService&#xa;状态探测服务&#xa;--&#xa;+ping(ip)&#xa;+pollAllDevices()" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="790" y="120" width="190" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="auds" value="AuditService&#xa;审计服务&#xa;--&#xa;+log(action,target,id,detail)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="300" y="340" width="210" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="deve" value="Device&#xa;设备实体&#xa;--&#xa;-id&#xa;-name&#xa;-ip&#xa;-status" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="570" y="340" width="170" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="aude" value="AuditLog&#xa;审计日志实体&#xa;--&#xa;-id&#xa;-action&#xa;-targetId&#xa;-createTime" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;fontSize=11;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="790" y="340" width="190" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" edge="1" parent="1" source="devc" target="devs" value="调用" style="endArrow=classic;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="devc" target="auds" value="记录审计" style="endArrow=classic;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="devs" target="devr" value="持久化" style="endArrow=classic;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="devs" target="mons" value="探测调用" style="endArrow=classic;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="devr" target="deve" value="ORM映射" style="endArrow=open;dashed=1;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="auds" target="aude" value="写入日志" style="endArrow=open;dashed=1;html=1;strokeColor=#000000;fontSize=10;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

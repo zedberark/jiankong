@@ -1,0 +1,298 @@
+@startuml NetPulse_类图_完整_关系用途说明
+' =============================================================================
+' 完整后端类图：四层 + 关系旁 **中文说明「前者因何使用后者」**
+' 与 Spring 注入一致；未画出 PasswordEncoder、InfluxDBClient、Redis 等框架/中间件类型。
+' =============================================================================
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam ArrowThickness 1.0
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam nodesep 20
+skinparam ranksep 24
+hide empty methods
+top to bottom direction
+scale max 2400 width
+
+title NetPulse 后端完整类图（关系旁标注用途说明）
+
+note as READ
+  **读图**：实线箭头表示依赖/调用方向，文字说明 **源类为何使用目标类**。
+  虚线 **..>** 表示可选注入、ORM 映射或弱依赖。
+end note
+
+note as NINF
+  **未画出的技术依赖**：**MonitorService / DeviceStatsService / InfluxDbMetricService** 可注入 **InfluxDBClient**；**SnmpStatsService** 使用 **Redis**；**LocalHostStatsService** 使用 **OSHI**；**AuthTokenService** 仅依赖配置密钥。这些不作为类框展开，避免类图过载。
+end note
+
+package "控制层（REST 等 HTTP 入口）" #dae8fc {
+  class AuthController as "登录认证\nAuthController"
+  class UserController as "用户管理\nUserController"
+  class RoleController as "角色与菜单权限\nRoleController"
+  class DeviceController as "设备 CRUD/探测/采集\nDeviceController"
+  class AlertController as "告警规则/历史/通知设置\nAlertController"
+  class MetricsController as "仪表盘指标/趋势/刷新\nMetricsController"
+  class MetricController as "Influx 折线图数据\nMetricController"
+  class HealthController as "健康检查汇总\nHealthController"
+  class BatchCommandController as "批量命令下发\nBatchCommandController"
+  class AiChatController as "AI 对话与运维助手\nAiChatController"
+  class InspectionController as "系统巡检报告\nInspectionController"
+  class ConfigBackupController as "配置备份导出\nConfigBackupController"
+  class SystemConfigController as "系统参数维护\nSystemConfigController"
+  class ApiSettingsController as "大模型 API 等设置\nApiSettingsController"
+  class AuditLogController as "审计日志分页查询\nAuditLogController"
+  class ExportController as "CSV 导出\nExportController"
+  class AlarmRulesController as "告警规则表 CRUD\nAlarmRulesController"
+}
+
+package "终端与 WebSocket" #d6eaf8 {
+  class SshWebSocketHandler as "浏览器 SSH/Telnet 终端\nSshWebSocketHandler" <<WebSocket>>
+}
+
+package "业务与安全服务层" #d5e8d4 {
+  class AuthTokenService as "签发/校验登录令牌\nAuthTokenService" <<security>>
+  class UserService as "用户与角色分配\nUserService"
+  class RoleMenuService as "角色可访问菜单\nRoleMenuService"
+  class DeviceService as "设备业务与 Ping 委托\nDeviceService"
+  class MonitorService as "定时探测与写状态/时序\nMonitorService"
+  class DeviceStatsService as "CPU/内存等指标聚合\nDeviceStatsService"
+  class DeviceSshCollectService as "SSH 采集 Linux 指标\nDeviceSshCollectService"
+  class DeviceVendorFillService as "定时回填设备厂商\nDeviceVendorFillService"
+  class SnmpStatsService as "从 Redis 读 SNMP 指标\nSnmpStatsService"
+  class DeviceSnmpCollectService as "网络设备 SNMP 采集\nDeviceSnmpCollectService" <<SNMP>>
+  class AlertService as "规则评估与告警历史\nAlertService"
+  class AlertEmailService as "告警邮件异步发送\nAlertEmailService"
+  class RemediationService as "告警自动修复命令\nRemediationService"
+  class AiChatService as "会话/消息与 LLM 调用\nAiChatService"
+  class InspectionService as "巡检探测与报告落库\nInspectionService"
+  class InspectionScheduleService as "定时生成巡检报告\nInspectionScheduleService"
+  class BatchCommandService as "SSH/Telnet 执行单条命令\nBatchCommandService"
+  class WebSshService as "终端会话与流转发\nWebSshService"
+  class SystemConfigService as "键值系统配置\nSystemConfigService"
+  class ConfigBackupService as "多类型 JSON 备份\nConfigBackupService"
+  class AuditService as "操作审计异步落库\nAuditService"
+  class AuditLogQueryService as "审计条件分页查询\nAuditLogQueryService"
+  class InfluxDbMetricService as "按设备查 Influx 指标序列\nInfluxDbMetricService"
+  class LocalHostStatsService as "本机 CPU/内存/磁盘\nLocalHostStatsService"
+}
+
+package "持久层（JPA Repository）" #fff2cc {
+  interface SysUserRepository as "SysUserRepository"
+  interface RoleRepository as "RoleRepository"
+  interface UserRoleRepository as "UserRoleRepository"
+  interface RoleMenuRepository as "RoleMenuRepository"
+  interface DeviceRepository as "DeviceRepository"
+  interface AlertRuleRepository as "AlertRuleRepository"
+  interface AlertHistoryRepository as "AlertHistoryRepository"
+  interface AlertTemplateRepository as "AlertTemplateRepository"
+  interface AiChatSessionRepository as "AiChatSessionRepository"
+  interface AiChatMessageRepository as "AiChatMessageRepository"
+  interface InspectionReportRepository as "InspectionReportRepository"
+  interface SystemConfigRepository as "SystemConfigRepository"
+  interface ConfigBackupRepository as "ConfigBackupRepository"
+  interface AuditLogRepository as "AuditLogRepository"
+  interface AlarmRulesRepository as "AlarmRulesRepository"
+}
+
+package "实体层（领域模型）" #e1d5e7 {
+  class SysUser as "SysUser"
+  class Role as "Role"
+  class UserRole as "UserRole"
+  class RoleMenu as "RoleMenu"
+  class Device as "Device"
+  class AlertRule as "AlertRule"
+  class AlertHistory as "AlertHistory"
+  class AlertTemplate as "AlertTemplate"
+  class AiChatSession as "AiChatSession"
+  class AiChatMessage as "AiChatMessage"
+  class InspectionReport as "InspectionReport"
+  class InspectionItem as "InspectionItem"
+  class SystemConfig as "SystemConfig"
+  class ConfigBackup as "ConfigBackup"
+  class AuditLog as "AuditLog"
+  class AlarmRules as "AlarmRules"
+}
+
+' ===================== 控制层 → 服务 / 安全 / 仓储 =====================
+AuthController --> SysUserRepository : 登录按用户名查账号
+AuthController --> UserService : 配合完成登录业务
+AuthController --> AuditService : 记录登录成功/失败
+AuthController --> AuthTokenService : 生成会话令牌
+
+UserController --> UserService : 用户 CRUD 与角色
+UserController --> AuditService : 记录用户变更操作
+UserController --> SystemConfigService : 读写用户级通知级别配置
+
+RoleController --> RoleRepository : 读取角色基础数据
+RoleController --> RoleMenuService : 维护角色菜单权限
+
+DeviceController --> DeviceService : 设备业务与 Ping
+DeviceController --> BatchCommandService : 设备页相关命令能力
+DeviceController --> AuditService : 记录设备变更
+DeviceController ..> DeviceSnmpCollectService : 可选·触发 SNMP 单机采集
+
+AlertController --> AlertRuleRepository : 规则列表与增删改查
+AlertController --> AlertTemplateRepository : 告警模板维护
+AlertController --> AlertHistoryRepository : 历史查询与状态更新
+AlertController --> DeviceService : 按设备解析规则上下文
+AlertController --> AlertEmailService : 读取/保存通知渠道配置
+AlertController --> AuditService : 记录告警配置变更
+
+MetricsController --> DeviceService : 取设备列表与在线状态
+MetricsController --> DeviceStatsService : 汇总实时/缓存指标
+MetricsController ..> SnmpStatsService : 可选·读 Redis 中 SNMP 结果
+MetricsController ..> DeviceSshCollectService : 可选·触发 SSH 刷新采集
+MetricsController --> LocalHostStatsService : 本机监控页数据
+
+MetricController --> InfluxDbMetricService : 折线图时序查询
+
+HealthController --> DeviceService : 聚合健康状态
+
+BatchCommandController --> BatchCommandService : 多设备执行命令
+BatchCommandController --> AuditService : 记录批量命令操作
+
+AiChatController --> AiChatService : 对话与工具调用
+AiChatController --> InspectionService : 取巡检摘要供 AI 引用
+AiChatController --> AuditService : 记录 AI 相关操作
+
+InspectionController --> InspectionService : 手动巡检与报告查询
+InspectionController --> AuditService : 记录巡检操作
+
+ConfigBackupController --> ConfigBackupService : 创建/下载备份
+ConfigBackupController --> AuditService : 记录备份行为
+
+SystemConfigController --> SystemConfigService : 维护系统键值配置
+SystemConfigController --> AuditService : 记录配置修改
+
+ApiSettingsController --> SystemConfigService : 读写 LLM 等 API 配置
+ApiSettingsController --> AuditService : 记录 API 设置变更
+
+AuditLogController --> AuditLogQueryService : 条件分页查询审计
+
+ExportController --> AlertHistoryRepository : 导出告警历史 CSV
+ExportController --> AuditLogRepository : 导出审计 CSV
+
+AlarmRulesController --> AlarmRulesRepository : 新版规则表 CRUD
+AlarmRulesController --> AuditService : 记录规则表变更
+
+' ===================== WebSocket 终端 =====================
+SshWebSocketHandler --> WebSshService : 建立/维护 Shell 会话
+SshWebSocketHandler ..> DeviceSshCollectService : 可选·解析终端输出为指标
+
+' ===================== 服务层协作（节选主要用途）=====================
+UserService --> SysUserRepository : 用户表 CRUD
+UserService --> UserRoleRepository : 维护用户-角色关联
+UserService --> RoleRepository : 解析角色编码
+UserService --> RoleMenuService : 计算可见菜单、配合保存用户角色
+
+RoleMenuService --> RoleMenuRepository : 读写角色菜单
+RoleMenuService --> RoleRepository : 校验角色存在
+
+DeviceService --> DeviceRepository : 设备持久化与查询
+DeviceService --> MonitorService : 委托 Ping 与状态刷新
+
+MonitorService --> DeviceRepository : 更新在线状态与 RTT
+MonitorService --> AlertService : 设备上下线时评估告警
+
+DeviceStatsService --> DeviceRepository : 遍历待采集设备
+DeviceStatsService --> BatchCommandService : 无 Telegraf 时 SSH 取 CPU/内存
+
+DeviceVendorFillService --> DeviceRepository : 查找待补厂商设备
+DeviceVendorFillService --> BatchCommandService : SSH 执行 os-release
+
+DeviceSshCollectService ..> WebSshService : 创建临时会话做采集
+DeviceSshCollectService --> DeviceRepository : 读取连接信息
+
+DeviceSnmpCollectService --> DeviceRepository : 选取需采集的网络设备
+DeviceSnmpCollectService ..> DeviceSshCollectService : 可选·SNMP 失败时回退 SSH
+
+AlertService --> AlertRuleRepository : 加载启用规则
+AlertService --> AlertHistoryRepository : 写入/更新告警事件
+AlertService --> AlertTemplateRepository : 模板应用（若涉及）
+AlertService --> DeviceRepository : 取设备信息与指标评估
+AlertService --> AlertEmailService : 触发邮件通知
+AlertService --> RemediationService : 触发自动修复
+AlertService ..> DeviceSshCollectService : 可选·拉取最新指标
+AlertService ..> SnmpStatsService : 可选·读 SNMP 指标
+
+AlertEmailService --> SystemConfigService : 读 SMTP 与通知开关
+AlertEmailService --> AlertRuleRepository : 取规则侧通知配置
+AlertEmailService --> DeviceRepository : 取设备展示名等
+AlertEmailService --> SysUserRepository : 按用户聚合通知级别
+
+RemediationService --> DeviceRepository : 取目标设备连接信息
+RemediationService --> BatchCommandService : 在设备上执行修复命令
+RemediationService ..> AlertService : 可选·修复后尝试自动结案
+
+AiChatService --> AiChatSessionRepository : 会话持久化
+AiChatService --> AiChatMessageRepository : 消息持久化
+AiChatService --> DeviceService : 构造设备上下文
+AiChatService --> DeviceStatsService : 构造指标上下文
+AiChatService --> SystemConfigService : 读取 LLM URL 与 Key
+AiChatService ..> DeviceSshCollectService : 可选·补充 SSH 指标
+AiChatService ..> SnmpStatsService : 可选·补充 SNMP 指标
+AiChatService ..> AlertHistoryRepository : 可选·拉近期告警作上下文
+
+InspectionService --> DeviceRepository : 取待巡检设备列表
+InspectionService --> MonitorService : 复用可达性探测
+InspectionService --> InspectionReportRepository : 报告与明细落库
+InspectionService --> AiChatService : 调用大模型生成巡检结论
+
+InspectionScheduleService --> InspectionService : 定时执行巡检流水线
+InspectionScheduleService --> AuditService : 记录定时任务侧审计
+
+BatchCommandService --> DeviceRepository : 按 ID 取 SSH/Telnet 参数
+
+WebSshService --> DeviceRepository : 按设备 ID 取连接参数
+
+SystemConfigService --> SystemConfigRepository : 配置项 CRUD
+
+ConfigBackupService --> ConfigBackupRepository : 备份记录落库
+ConfigBackupService --> DeviceRepository : 导出设备 JSON
+ConfigBackupService --> AlertRuleRepository : 导出规则 JSON
+ConfigBackupService --> SystemConfigRepository : 导出系统配置 JSON
+
+AuditService --> AuditLogRepository : 异步写入审计行
+
+AuditLogQueryService --> AuditLogRepository : 分页与筛选
+
+' ===================== 仓储 → 实体（ORM 映射）=====================
+SysUserRepository ..> SysUser : 表 sys_user
+RoleRepository ..> Role : 表 role
+UserRoleRepository ..> UserRole : 表 user_role
+RoleMenuRepository ..> RoleMenu : 表 role_menu
+DeviceRepository ..> Device : 表 device
+AlertRuleRepository ..> AlertRule : 表 alert_rule
+AlertHistoryRepository ..> AlertHistory : 表 alert_history
+AlertTemplateRepository ..> AlertTemplate : 表 alert_template
+AiChatSessionRepository ..> AiChatSession : 表 ai_chat_session
+AiChatMessageRepository ..> AiChatMessage : 表 ai_chat_message
+InspectionReportRepository ..> InspectionReport : 表 inspection_report
+SystemConfigRepository ..> SystemConfig : 表 system_config
+ConfigBackupRepository ..> ConfigBackup : 表 config_backup
+AuditLogRepository ..> AuditLog : 表 audit_log
+AlarmRulesRepository ..> AlarmRules : 表 alarm_rules
+
+' ===================== 实体关联（业务含义）=====================
+SysUser "1" -- "n" UserRole : 用户拥有多角色
+Role "1" -- "n" UserRole : 角色分配给多用户
+Role "1" -- "n" RoleMenu : 角色对应菜单集合
+AlertRule "n" --> "0..1" Device : 规则绑定设备（可全局）
+AlertRule "1" --> "n" AlertHistory : 规则触发产生历史
+Device "1" --> "n" AlertHistory : 设备上发生的告警
+AlertTemplate "1" ..> "n" AlertRule : 模板生成或约束规则
+AiChatSession "1" *-- "n" AiChatMessage : 会话包含多条消息
+InspectionReport "1" *-- "n" InspectionItem : 报告由明细组成
+InspectionItem "n" ..> "1" Device : 明细快照关联设备
+SysUser "1" ..> "n" ConfigBackup : 备份记录操作者
+SysUser "1" ..> "n" AuditLog : 按用户名关联（非外键）
+
+legend right
+  |= 说明 |
+  | 本图覆盖 **主要** 注入关系；极少量工具类、AOP、条件 Bean 未展开。 |
+  | **MonitorService / DeviceStatsService / InfluxDbMetricService** 对 InfluxDB 的访问在说明中用文字指代。 |
+endlegend
+
+@enduml

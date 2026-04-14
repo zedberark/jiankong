@@ -38,9 +38,9 @@
         </div>
 
         <div class="feature-tags">
-          <span class="label">常用功能：</span>
+          <span class="label">常用功能（按厂商/类型推荐）：</span>
           <button
-            v-for="f in allFeatures"
+            v-for="f in visibleFeatures"
             :key="f"
             type="button"
             class="tag-btn"
@@ -162,6 +162,13 @@ const deviceType = ref('router')
 const requirement = ref('')
 const allFeatures = ['VLAN', 'ACL', 'OSPF', '静态路由', 'DHCP', 'NAT', 'STP']
 const features = ref([])
+const visibleFeatures = computed(() => {
+  const t = String(deviceType.value || '').trim().toLowerCase()
+  if (t === 'switch') return ['VLAN', 'STP', 'ACL', 'DHCP']
+  if (t === 'router') return ['OSPF', '静态路由', 'ACL', 'NAT', 'DHCP']
+  if (t === 'firewall') return ['ACL', 'NAT', '静态路由', 'DHCP']
+  return allFeatures
+})
 
 const generated = ref('')
 const generating = ref(false)
@@ -180,6 +187,18 @@ const currentDeviceId = computed(() =>
 const currentDevice = computed(() =>
   devices.value.find(d => d.id === currentDeviceId.value) || null
 )
+const effectiveVendor = computed(() => {
+  if (terminalConnected.value && currentDevice.value) {
+    return normalizeVendor(currentDevice.value.vendor) || vendor.value
+  }
+  return vendor.value
+})
+const effectiveDeviceType = computed(() => {
+  if (terminalConnected.value && currentDevice.value) {
+    return normalizeDeviceType(currentDevice.value.type) || deviceType.value
+  }
+  return deviceType.value
+})
 
 const terminalRef = ref(null)
 let terminal = null
@@ -195,16 +214,49 @@ function toggleFeature(f) {
   } else {
     features.value.push(f)
   }
-  // 根据当前厂商和设备类型，应用该功能的示例模板到配置需求
-  const tpl = buildFeatureTemplate(vendor.value, deviceType.value, f)
-  if (tpl) {
-    requirement.value = tpl
-  }
+  applyFeatureTemplate()
 }
 
 function typeLabel(t) {
   const m = { server: '服务器', switch: '交换机', router: '路由器', firewall: '防火墙', other: '其他' }
   return m[t] || t || '-'
+}
+
+function normalizeVendor(v) {
+  const s = String(v || '').trim().toLowerCase()
+  if (!s) return null
+  if (s.includes('huawei') || s.includes('华为')) return 'huawei'
+  if (s.includes('h3c') || s.includes('华三')) return 'h3c'
+  if (s.includes('cisco') || s.includes('思科')) return 'cisco'
+  if (s.includes('ruijie') || s.includes('锐捷')) return 'ruijie'
+  return 'other'
+}
+
+function normalizeDeviceType(t) {
+  const s = String(t || '').trim().toLowerCase()
+  if (!s) return null
+  if (s === 'switch' || s === 'sw' || s.includes('交换')) return 'switch'
+  if (s === 'router' || s.includes('路由')) return 'router'
+  if (s === 'firewall' || s.includes('防火墙')) return 'firewall'
+  return 'other'
+}
+
+/** 按当前终端设备自动同步 AI 生成的厂商与设备类型 */
+function syncAiContextByCurrentDevice() {
+  const d = currentDevice.value
+  if (!d) return
+  const v = normalizeVendor(d.vendor)
+  const t = normalizeDeviceType(d.type)
+  let changed = false
+  if (v && vendor.value !== v) {
+    vendor.value = v
+    changed = true
+  }
+  if (t && deviceType.value !== t) {
+    deviceType.value = t
+    changed = true
+  }
+  if (changed) applyFeatureTemplate()
 }
 
 function loadDevices() {
@@ -240,13 +292,14 @@ function selectSingleDevice(deviceId, event) {
     return
   }
   selectedDeviceId.value = deviceId
+  syncAiContextByCurrentDevice()
 }
 
 function buildAiPrompt(strictRetry = false, badOutput = '') {
   const vendorText = { huawei: '华为（Huawei）', cisco: '思科（Cisco）', h3c: '华三（H3C）', ruijie: '锐捷（Ruijie）', other: '通用厂商' }[
-    vendor.value
+    effectiveVendor.value
   ]
-  const typeText = { router: '路由器', switch: '三层交换机', firewall: '防火墙', other: '其他网络设备' }[deviceType.value]
+  const typeText = { router: '路由器', switch: '三层交换机', firewall: '防火墙', other: '其他网络设备' }[effectiveDeviceType.value]
   const featureText = features.value.length ? `涉及功能：${features.value.join('、')}。` : ''
   const vendorGuard = {
     huawei: '厂商限定：仅使用华为VRP风格命令；禁止出现 Cisco IOS/H3C/锐捷 特有命令。',
@@ -254,7 +307,7 @@ function buildAiPrompt(strictRetry = false, badOutput = '') {
     h3c: '厂商限定：仅使用 H3C Comware 风格命令；禁止出现华为/Cisco/锐捷 特有命令。',
     ruijie: '厂商限定：仅使用锐捷网络设备 CLI 风格命令；禁止出现华为/H3C/Cisco 特有命令。',
     other: '厂商限定：输出通用CLI步骤，并尽量避免厂商私有命令。'
-  }[vendor.value]
+  }[effectiveVendor.value]
   const retryHint = strictRetry
     ? `\n你上一次输出混入了非目标厂商语法，必须修正。错误示例（不要重复）：\n${badOutput}\n`
     : ''
@@ -269,7 +322,7 @@ function buildAiPrompt(strictRetry = false, badOutput = '') {
       '【完整性—锐捷】须使用锐捷 CLI 习惯（与 Cisco 类似时常用 conf t、vlan、interface Vlan），给出从进入配置到各 VLAN 网关就绪的完整步骤，禁止混入华为 Vlanif/vlan batch 语法。',
     other:
       '【完整性】凡涉及多 VLAN/三层网关，须逐步写全：VLAN 创建、三层接口、IP、接口 up，勿只给片段。'
-  }[vendor.value]
+  }[effectiveVendor.value]
 
   return `你是一名资深网络工程师，请为${vendorText}的${typeText}生成配置命令（CLI），满足以下需求：\n${requirement.value}\n${featureText}\n${vendorGuard}\n${completeness}${retryHint}\n要求：\n1. 只输出可直接在设备上执行的配置命令，不要解释文字。\n2. 按合理顺序排列，必要时分段加空行；涉及多个 VLAN 时每个 VLAN 写完整一段。\n3. 禁止输出「不完整片段」（例如仅有 interface 而无前置 vlan 创建），除非用户明确只要改某一接口。\n4. 如果无法确认某条命令在该厂商下的准确写法，请用以 # 开头的注释占位，不要改用其他厂商语法。`
 }
@@ -344,6 +397,25 @@ function buildFeatureTemplate(v, t, feature) {
   return ''
 }
 
+function getAutoFeatureByDeviceType(type) {
+  const t = String(type || '').trim().toLowerCase()
+  if (t === 'switch') return 'VLAN'
+  if (t === 'router') return 'OSPF'
+  if (t === 'firewall') return 'ACL'
+  return '静态路由'
+}
+
+/** 按当前厂商/设备类型/常用功能自动生成对应模板。 */
+function applyFeatureTemplate() {
+  // 设备类型切换后，移除不在当前推荐范围内的已选功能
+  features.value = features.value.filter(f => visibleFeatures.value.includes(f))
+  const feature = features.value.length
+    ? features.value[features.value.length - 1]
+    : getAutoFeatureByDeviceType(effectiveDeviceType.value)
+  const tpl = buildFeatureTemplate(effectiveVendor.value, effectiveDeviceType.value, feature)
+  if (tpl) requirement.value = tpl
+}
+
 function hasVendorMismatch(output, selectedVendor) {
   const t = String(output || '')
   if (!t.trim()) return false
@@ -373,7 +445,7 @@ async function generate() {
     let reply = firstResp?.data?.reply ?? ''
 
     // 若检测到厂商语法串台，自动强约束重试一次
-    if (hasVendorMismatch(reply, vendor.value)) {
+    if (hasVendorMismatch(reply, effectiveVendor.value)) {
       const retryPrompt = buildAiPrompt(true, reply)
       const retryResp = await aiChat(undefined, retryPrompt, { transient: true })
       const retryReply = retryResp?.data?.reply ?? ''
@@ -381,7 +453,7 @@ async function generate() {
     }
 
     generated.value = reply
-    if (hasVendorMismatch(reply, vendor.value)) {
+    if (hasVendorMismatch(reply, effectiveVendor.value)) {
       alert('检测到命令可能混入了其他厂商语法。建议补充更具体需求（接口名、协议、目标网段）后重试。')
     }
   } catch (e) {
@@ -487,8 +559,14 @@ function connectTerminal(deviceId) {
   ws.onerror = () => {
     terminal?.writeln('\r\n[错误] WebSocket 连接失败，请检查后端与 SSH 配置。\r\n')
   }
-  ws.onclose = () => {
-    terminal?.writeln('\r\n连接已关闭。\r\n')
+  ws.onclose = (ev) => {
+    const hint =
+      ev.code === 1006
+        ? '（异常断开，多为代理/后端未转发 WebSocket 或 SSH 通道被设备关闭）'
+        : ev.code === 1000
+          ? ''
+          : `（code=${ev.code}${ev.reason ? ' ' + ev.reason : ''}）`
+    terminal?.writeln('\r\n连接已关闭。' + hint + '\r\n')
     terminalConnected.value = false
     ws = null
   }
@@ -510,11 +588,13 @@ function openTerminal() {
     alert('请先在右上选择一台网络设备')
     return
   }
+  syncAiContextByCurrentDevice()
   connectTerminal(currentDeviceId.value)
 }
 
 onMounted(() => {
   loadDevices()
+  applyFeatureTemplate()
   nextTick(() => {
     window.addEventListener('resize', handleResize)
   })
@@ -534,10 +614,24 @@ onUnmounted(() => {
   terminal?.dispose()
 })
 
-watch(currentDeviceId, (id) => {
+watch(currentDeviceId, (id, prev) => {
   if (!id) {
     disconnectTerminal()
+    return
   }
+  syncAiContextByCurrentDevice()
+  // 换设备时先关旧连接，避免多路 SSH 占满 VTY 或设备主动断开
+  if (prev != null && id !== prev) {
+    disconnectTerminal()
+  }
+})
+
+watch([vendor, deviceType], () => {
+  applyFeatureTemplate()
+})
+
+watch([terminalConnected, currentDeviceId], () => {
+  applyFeatureTemplate()
 })
 </script>
 

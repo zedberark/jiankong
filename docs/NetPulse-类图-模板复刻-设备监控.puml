@@ -1,0 +1,117 @@
+@startuml NetPulse_类图_模板复刻_设备监控
+' 参考图复刻：浅米黄类框、三栏、左右展开、中文关系标注
+!theme plain
+skinparam monochrome true
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam linetype polyline
+skinparam ArrowThickness 1
+skinparam nodesep 24
+skinparam ranksep 22
+skinparam classAttributeIconSize 0
+skinparam classFontSize 9
+skinparam defaultFontName "Microsoft YaHei"
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  FontColor #000000
+}
+
+left to right direction
+scale max 2400 width
+title 监控运维系统类图
+
+class "«Java Class»\nDeviceController（设备管理控制器）" as DeviceController {
+  -deviceService : DeviceService
+  -auditService : AuditService
+  --
+  +list(group) : List<Device>
+  +save(device) : Device
+  +create(device) : ResponseEntity<?>
+  +update(id, device) : ResponseEntity<?>
+  +ping(id) : ResponseEntity<?>
+}
+
+interface "«Java Interface»\nDeviceService（设备服务接口）" as DeviceService {
+  +findAll(group) : List<Device>
+  +save(device) : Device
+  +deleteById(id) : void
+  +pingDevice(id) : long
+}
+
+class "«Java Class»\nDeviceService（设备服务实现）" as DeviceServiceImpl {
+  -deviceRepository : DeviceRepository
+  -monitorService : MonitorService
+  --
+  +findAll(group) : List<Device>
+  +save(device) : Device
+  +deleteById(id) : void
+  +pingDevice(id) : long
+}
+
+interface "«Java Interface»\nDeviceRepository（设备仓储接口）" as DeviceRepository {
+  +findByDeletedFalse() : List<Device>
+  +findById(id) : Optional<Device>
+  +save(entity) : Device
+  +updateStatusAndLastPollTime(...) : int
+}
+
+class "«Java Class»\nMonitorService（状态监测服务）" as MonitorService {
+  +checkReachability(device) : DeviceReachabilityResult
+  +pollAllDevices() : void
+  +writeDeviceStatus(...) : void
+}
+
+class "«Java Class»\nDevice（设备实体）" as Device {
+  -id : Long
+  -name : String
+  -ip : String
+  -status : DeviceStatus
+  -groupName : String
+  -sshPort : Integer
+  -snmpPort : Integer
+  --
+  +prePersist() : void
+  +preUpdate() : void
+}
+
+class "«Java Class»\nAuditService（审计服务）" as AuditService {
+  +log(action : String, targetType : String,\n targetId : Long, detail : String) : void
+}
+
+class "«Java Class»\nAuditLog（审计日志）" as AuditLog {
+  -id : Long
+  -username : String
+  -action : String
+  -targetType : String
+  -targetId : Long
+  -createTime : LocalDateTime
+}
+
+' 布局辅助（强制横向一排，避免上下分层）
+DeviceController -[hidden]right-> DeviceService
+DeviceService -[hidden]right-> DeviceServiceImpl
+DeviceServiceImpl -[hidden]right-> DeviceRepository
+DeviceRepository -[hidden]right-> MonitorService
+MonitorService -[hidden]right-> Device
+Device -[hidden]right-> AuditService
+AuditService -[hidden]right-> AuditLog
+
+' 关系（与参考图同类表达）
+DeviceController --> DeviceService : 调用
+DeviceController ..> AuditService : 记录审计
+DeviceServiceImpl ..|> DeviceService : 实现
+DeviceServiceImpl --> DeviceRepository : 读写
+DeviceServiceImpl --> MonitorService : 连通探测
+DeviceRepository ..> Device : 持久化
+MonitorService ..> Device : 状态更新
+AuditService ..> AuditLog : 写入
+
+@enduml

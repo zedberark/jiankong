@@ -1,0 +1,217 @@
+@startuml NetPulse_UML类图_论文规范
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 45
+skinparam ranksep 50
+
+title NetPulse 监控运维系统 — UML 类图（核心领域实体与关系）\n矩形三栏：类名、属性、方法；关系含关联、组合等
+
+legend right
+  **说明**
+  本系统用户与角色为 **多对多**（UserRole 中间表），
+  非「管理员 / 普通用户」继承结构。
+  方法栏为领域对象常见操作示意，实际由
+  Service / Repository 实现。
+endlegend
+
+package "用户与权限" #dae8fc {
+  class SysUser <<实体>> {
+    - id : Long
+    - username : String
+    - password : String
+    - email : String
+    - enabled : Boolean
+    - createTime : LocalDateTime
+    - updateTime : LocalDateTime
+    --
+    + 登录校验()
+    + 修改密码()
+    + 查询()
+    + 保存()
+  }
+
+  class Role <<实体>> {
+    - id : Long
+    - code : String
+    - name : String
+    - description : String
+    - createTime : LocalDateTime
+    --
+    + 查询()
+    + 保存()
+    + 删除()
+  }
+
+  class UserRole <<实体>> {
+    - userId : Long
+    - roleId : Long
+    --
+    + 绑定()
+    + 解除()
+  }
+
+  class RoleMenu <<实体>> {
+    - roleId : Long
+    - menuCode : String
+    --
+    + 查询()
+    + 保存()
+  }
+}
+
+package "设备与告警" #e8f5e9 {
+  class Device <<实体>> {
+    - id : Long
+    - name : String
+    - ip : String
+    - type : DeviceType
+    - status : DeviceStatus
+    - groupName : String
+    - sshPort : Integer
+    - snmpPort : Integer
+    - deleted : Boolean
+    --
+    + 查询()
+    + 保存()
+    + 删除()
+    + Ping探测()
+  }
+
+  class AlertRule <<实体>> {
+    - id : Long
+    - name : String
+    - deviceId : Long
+    - deviceTypes : String
+    - metricKey : String
+    - condition : String
+    - severity : Severity
+    - enabled : Boolean
+    --
+    + 查询()
+    + 保存()
+    + 删除()
+    + 启用禁用()
+  }
+
+  class AlertHistory <<实体>> {
+    - id : Long
+    - ruleId : Long
+    - deviceId : Long
+    - metricKey : String
+    - triggerValue : String
+    - startTime : LocalDateTime
+    - endTime : LocalDateTime
+    - status : AlertStatus
+    - severity : Severity
+    - message : String
+    --
+    + 查询()
+    + 标记恢复()
+  }
+}
+
+package "AI 助手" #ede9fe {
+  class AiChatSession <<实体>> {
+    - id : Long
+    - username : String
+    - title : String
+    - systemContext : String
+    - createTime : LocalDateTime
+    --
+    + 查询()
+    + 新建会话()
+    + 删除会话()
+  }
+
+  class AiChatMessage <<实体>> {
+    - id : Long
+    - sessionId : Long
+    - role : String
+    - content : String
+    - createTime : LocalDateTime
+    --
+    + 追加消息()
+    + 查询历史()
+  }
+}
+
+package "系统巡检" #faf5ff {
+  class InspectionReport <<实体>> {
+    - id : Long
+    - createdAt : LocalDateTime
+    - finishedAt : LocalDateTime
+    - groupName : String
+    - totalCount : int
+    - okCount : int
+    - warnCount : int
+    - offlineCount : int
+    - source : String
+    - aiSummary : String
+    --
+    + 查询()
+    + 生成报告()
+    + 导出PDF()
+  }
+
+  class InspectionItem <<实体>> {
+    - id : Long
+    - deviceId : Long
+    - deviceName : String
+    - ip : String
+    - status : String
+    - rttMs : Long
+    --
+    + 查询明细()
+  }
+}
+
+package "审计与配置" #fff8e1 {
+  class AuditLog <<实体>> {
+    - id : Long
+    - username : String
+    - action : String
+    - targetType : String
+    - targetId : Long
+    - detail : String
+    - ip : String
+    - createTime : LocalDateTime
+    --
+    + 查询()
+    + 导出()
+  }
+
+  class SystemConfig <<实体>> {
+    - configKey : String
+    - configValue : String
+    --
+    + 查询()
+    + 保存()
+  }
+}
+
+' ========== 关系：多对多、关联、组合 ==========
+
+SysUser "1" -- "n" UserRole : 用户拥有角色
+Role "1" -- "n" UserRole : 角色分配用户
+Role "1" -- "n" RoleMenu : 角色菜单
+
+Device "1" -- "0..n" AlertRule : 规则可选绑定设备
+AlertRule "1" -- "n" AlertHistory : 规则产生历史
+Device "1" -- "n" AlertHistory : 设备告警记录
+
+AiChatSession "1" *-- "n" AiChatMessage : 组合\n会话含消息
+
+InspectionReport "1" *-- "n" InspectionItem : 组合\n报告含明细
+
+SysUser "1" ..> "n" AuditLog : 关联\n操作主体(用户名)
+
+note bottom of Device
+  **关联**：实线表示结构或业务上的连接；
+  **组合**：实心菱形一端为整体，子对象随整体生命周期管理
+  （会话-消息、报告-明细为组合示意）。
+end note
+
+@enduml

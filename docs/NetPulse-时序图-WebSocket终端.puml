@@ -1,0 +1,39 @@
+@startuml NetPulse_时序图_WebSSH
+!theme plain
+skinparam sequenceMessageAlign center
+
+title NetPulse — 时序图：Web SSH 终端（WebSocket 双向转发）
+
+actor "运维用户" as U
+participant "浏览器\n(xterm.js)" as FE
+participant "WebSocket\n(前端 /api/ws/ssh)" as WS
+participant "SshWebSocketHandler\n+ WebSshService" as H
+participant "JSch / Commons Net" as TERM
+participant "网络设备" as DEV
+
+U -> FE: 输入设备、点击连接
+FE -> WS: 建立 WebSocket\n?deviceId=xxx
+
+WS -> H: 握手、取 device 凭证
+H -> TERM: 建立 SSH 或 Telnet
+TERM -> DEV: TCP 连接
+DEV --> TERM: 终端欢迎/提示
+
+loop 交互会话
+  U -> FE: 键盘输入
+  FE -> WS: 文本帧
+  WS -> H: onMessage
+  H -> TERM: 写入 stdin
+  TERM -> DEV: 数据
+  DEV --> TERM: 输出
+  TERM --> H: 读 stdout
+  H -> WS: 发送文本帧
+  WS --> FE: 渲染终端
+end
+
+U -> FE: 关闭连接
+FE -> WS: close
+WS -> H: 关闭会话
+H -> TERM: disconnect
+
+@enduml

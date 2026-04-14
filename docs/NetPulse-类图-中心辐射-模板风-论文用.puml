@@ -1,0 +1,124 @@
+@startuml NetPulse_类图_中心辐射_模板风_论文用
+' =============================================================================
+' 参照常见论文「中心辐射」模板：左侧统一入口类，右侧纵向堆叠若干 Manager，
+' 箭头直连、线上中文功能说明；类名与成员为英文，与 NetPulse 业务域对应。
+' 排版：一页；若仍过宽可将 scale 调至 0.85。
+' =============================================================================
+!theme plain
+skinparam monochrome true
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 4
+skinparam linetype ortho
+skinparam ArrowThickness 1.0
+skinparam nodesep 28
+skinparam ranksep 36
+skinparam classAttributeIconSize 0
+skinparam classFontSize 10
+skinparam defaultFontName "Segoe UI"
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  BorderThickness 1.5
+  FontColor #000000
+}
+skinparam arrow {
+  FontColor #000000
+  FontSize 9
+}
+
+hide empty methods
+left to right direction
+scale max 1200 width
+
+title NetPulse 运维平台类图（中心辐射式 · 黑白版）
+
+class "NetPulseOperationHub\n【统一运维入口】" as Hub {
+  - sessionToken : String
+  - operatorName : String
+  - clientVersion : String
+  __
+  + validateSession() : boolean
+  + refreshContext() : void
+  + dispatch(module : String) : void
+}
+
+class "UserSecurityManager\n【用户与权限】" as M1 {
+  - userPage : Page
+  - roleBindings : List
+  __
+  + listUsers(query : UserQuery) : Page
+  + resetPassword(userId : Long) : void
+  + changeRole(userId : Long, roleIds : List) : void
+  + setEnabled(userId : Long, enabled : boolean) : void
+}
+
+class "DeviceMonitorManager\n【设备与监控】" as M2 {
+  - deviceList : List
+  - lastPollSnapshot : Map
+  __
+  + listDevices(group : String) : List
+  + saveDevice(device : Device) : Device
+  + pingDevice(deviceId : Long) : long
+  + pollReachability() : void
+}
+
+class "AlertNotificationManager\n【告警与通知】" as M3 {
+  - activeRules : List
+  - historyPage : Page
+  __
+  + pageRules(pageable : Pageable) : Page
+  + evaluateMetrics(deviceId : Long) : void
+  + sendNotify(history : AlertHistory) : void
+}
+
+class "InspectionTaskManager\n【系统巡检】" as M4 {
+  - reportPage : Page
+  - probePool : ExecutorService
+  __
+  + runInspection(group : String) : InspectionReport
+  + listReports(pageable : Pageable) : Page
+  + getReportDetail(id : Long) : Dto
+}
+
+class "AiAssistantManager\n【AI 运维助手】" as M5 {
+  - sessionList : List
+  - llmEndpoint : String
+  __
+  + createSession(username : String) : AiChatSession
+  + chat(sessionId : Long, message : String) : ChatResult
+  + summarizeInspection(reportId : Long) : String
+}
+
+class "ConfigAuditManager\n【配置与审计】" as M6 {
+  - systemConfigs : Map
+  - auditPage : Page
+  __
+  + saveSystemConfig(key : String, value : String) : void
+  + queryAuditLogs(query : AuditQuery) : Page
+  + exportBackup(deviceIds : List) : byte[]
+}
+
+' 右侧纵向顺序（隐藏链仅用于排版）
+M1 -[hidden]down-> M2
+M2 -[hidden]down-> M3
+M3 -[hidden]down-> M4
+M4 -[hidden]down-> M5
+M5 -[hidden]down-> M6
+
+' 中心辐射连线（中文标注与模板一致）
+Hub -right-> M1 : 用户管理
+Hub -right-> M2 : 设备监控
+Hub -right-> M3 : 告警通知
+Hub -right-> M4 : 系统巡检
+Hub -right-> M5 : AI 助手
+Hub -right-> M6 : 配置审计
+
+legend bottom
+  **说明**：左侧 **NetPulseOperationHub** 表示浏览器经鉴权后的统一运维入口（概念聚合，实现上对应各 `Controller` + `Auth` 拦截器链）；
+  右侧六个 Manager 对应源码中 **用户 / 设备与监控 / 告警 / 巡检 / AI / 配置与审计** 等业务分包，类名便于与教材「中心调度—专业子模块」范文对照。
+  若需与类名完全一致的实现级类图，见 **NetPulse-类图-论文新版-分层.puml**。
+endlegend
+
+@enduml

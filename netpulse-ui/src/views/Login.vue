@@ -76,8 +76,14 @@ const STORAGE_KEY = STORAGE_KEYS.USER
 
 function submit() {
   error.value = ''
+  const u = (username.value || '').trim()
+  const p = (password.value || '').trim()
+  if (!u || !p) {
+    error.value = '登录失败'
+    return
+  }
   loading.value = true
-  login(username.value, password.value)
+  login(u, p)
     .then(r => {
       const data = r.data
       if (data && data.success && data.user) {

@@ -1,0 +1,75 @@
+@startuml NetPulse_用例图_总体
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+left to right direction
+
+title NetPulse 监控运维系统 — 用例图（总体）\n多参与者与用例关联；具体权限以角色菜单模板为准
+
+actor "系统管理员\n(ADMIN)" as A #lightblue
+actor "运维人员\n(分配菜单)" as B #lightgreen
+actor "只读用户\n(分配菜单)" as C #wheat
+
+rectangle "NetPulse 监控运维系统" #f5f5f5 {
+  usecase "用户登录与登出" as UC1
+  usecase "查看首页仪表盘" as UC2
+  usecase "设备管理\n(增删改查、导入、Ping)" as UC3
+  usecase "告警规则与\n告警历史" as UC4
+  usecase "实时指标与\n设备拓扑" as UC5
+  usecase "远程运维\n(SSH/批量/网络命令)" as UC6
+  usecase "系统巡检与\n巡检报告" as UC7
+  usecase "AI 运维助手" as UC8
+  usecase "操作审计查询" as UC9
+  usecase "配置备份与恢复" as UC10
+  usecase "用户与角色管理" as UC11
+  usecase "系统设置与\nAPI 配置" as UC12
+}
+
+' 系统管理员：全部
+A --> UC1
+A --> UC2
+A --> UC3
+A --> UC4
+A --> UC5
+A --> UC6
+A --> UC7
+A --> UC8
+A --> UC9
+A --> UC10
+A --> UC11
+A --> UC12
+
+' 运维人员：无用户管理；系统设置视分配（图中连典型运维范围）
+B --> UC1
+B --> UC2
+B --> UC3
+B --> UC4
+B --> UC5
+B --> UC6
+B --> UC7
+B --> UC8
+B --> UC9
+B --> UC10
+
+' 只读用户：以查看为主，无远程运维/备份/用户/系统设置
+C --> UC1
+C --> UC2
+C --> UC3
+C --> UC4
+C --> UC5
+C --> UC7
+C --> UC8
+C --> UC9
+
+note right of C
+  **只读用户** 实际可访问范围由
+  「角色—菜单权限模板」决定；
+  图中为典型只读场景示意。
+end note
+
+note bottom of A
+  **系统管理员** 拥有全部菜单编码
+  （见 MenuConstants），含设备密码可见等。
+end note
+
+@enduml

@@ -1,0 +1,120 @@
+@startuml NetPulse_领域实体类图
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype ortho
+title NetPulse — 领域实体类图（核心 JPA 实体与关联）
+
+package "用户与权限" #dae8fc {
+  class SysUser <<Entity>> {
+    -Long id
+    -String username
+    -String passwordHash
+    --
+    系统用户
+  }
+  class Role <<Entity>> {
+    -Long id
+    -String name
+  }
+  class UserRole <<Entity>> {
+    -Long userId
+    -Long roleId
+  }
+  class RoleMenu <<Entity>> {
+    -Long roleId
+    -String menuCode
+  }
+}
+
+SysUser "1" -- "n" UserRole
+Role "1" -- "n" UserRole
+Role "1" -- "n" RoleMenu
+
+package "设备与告警" #e8f5e9 {
+  class Device <<Entity>> {
+    -Long id
+    -String name
+    -String ip
+    -DeviceType type
+    -DeviceStatus status
+  }
+  class AlertRule <<Entity>> {
+    -Long id
+    -Long deviceId
+    -String metricKey
+    -String condition
+  }
+  class AlertHistory <<Entity>> {
+    -Long id
+    -Long ruleId
+    -Long deviceId
+  }
+  class AlertTemplate <<Entity>> {
+    -Long id
+  }
+}
+
+AlertRule "1" --> "0..1" Device : deviceId
+AlertRule "1" --> "n" AlertHistory
+Device "1" --> "n" AlertHistory
+
+package "AI 助手" #ede9fe {
+  class AiChatSession <<Entity>> {
+    -Long id
+    -String username
+    -String title
+    -String systemContext
+  }
+  class AiChatMessage <<Entity>> {
+    -Long id
+    -String role
+    -String content
+  }
+}
+
+AiChatSession "1" *-- "n" AiChatMessage : session_id
+
+package "系统巡检" #faf5ff {
+  class InspectionReport <<Entity>> {
+    -Long id
+    -String groupName
+    -int totalCount
+    -String source
+    -String aiSummary
+  }
+  class InspectionItem <<Entity>> {
+    -Long id
+    -Long deviceId
+    -String status
+  }
+}
+
+InspectionItem "n" --> "1" InspectionReport : report
+
+package "配置与审计" #fff8e1 {
+  class SystemConfig <<Entity>> {
+    -String configKey
+    -String configValue
+  }
+  class ConfigBackup <<Entity>> {
+    -Long id
+    -String name
+  }
+  class AuditLog <<Entity>> {
+    -Long id
+    -String username
+    -String action
+  }
+}
+
+SysUser "1" ..> "n" AuditLog : username
+SysUser "1" ..> "n" ConfigBackup : 创建者(可选)
+
+note bottom of Device
+  与 AlertRule/AlertHistory 在库中
+  以 device_id 关联，图中为
+  逻辑关联示意
+end note
+
+@enduml

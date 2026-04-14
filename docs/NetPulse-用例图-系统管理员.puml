@@ -1,0 +1,45 @@
+@startuml NetPulse_用例图_系统管理员
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+left to right direction
+
+title NetPulse — 用例图（**系统管理员**）\n拥有全部功能：含用户管理、系统设置、设备敏感字段等
+
+actor "系统管理员\n(ADMIN)" as A #lightblue
+
+rectangle "NetPulse 监控运维系统" #eef6ff {
+  usecase "用户登录与登出" as UC1
+  usecase "查看首页仪表盘" as UC2
+  usecase "设备全生命周期管理\n(含 SSH/SNMP 密码)" as UC3
+  usecase "告警规则与告警历史\n邮件通知" as UC4
+  usecase "实时指标与设备拓扑" as UC5
+  usecase "Web 终端与批量命令\n网络运维控制台" as UC6
+  usecase "系统巡检与报告导出" as UC7
+  usecase "AI 运维助手" as UC8
+  usecase "操作审计" as UC9
+  usecase "配置备份与恢复" as UC10
+  usecase "用户与角色权限" as UC11
+  usecase "系统设置与邮件/API" as UC12
+}
+
+A --> UC1
+A --> UC2
+A --> UC3
+A --> UC4
+A --> UC5
+A --> UC6
+A --> UC7
+A --> UC8
+A --> UC9
+A --> UC10
+A --> UC11
+A --> UC12
+
+note bottom of UC3
+  与「运维人员」差异示例：
+  仅管理员可查看/编辑设备
+  SSH、SNMP 等敏感密码（前端约定）
+end note
+
+@enduml

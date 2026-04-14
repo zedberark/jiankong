@@ -1,0 +1,37 @@
+@startuml NetPulse_用例图_只读用户
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+left to right direction
+
+title NetPulse — 用例图（**只读用户**）\n典型分配：仪表盘、指标、拓扑、告警查看；一般不分配改设备、远程运维、备份、用户管理
+
+actor "只读用户\n(浏览类菜单)" as C #wheat
+
+rectangle "NetPulse 监控运维系统" #fffbeb {
+  usecase "用户登录与登出" as UC1
+  usecase "查看首页仪表盘" as UC2
+  usecase "查看设备列表\n(只读)" as UC3
+  usecase "查看告警与历史" as UC4
+  usecase "实时指标与设备拓扑" as UC5
+  usecase "查看巡检报告" as UC6
+  usecase "AI 运维助手\n(问答)" as UC7
+  usecase "操作审计\n(只读查询)" as UC8
+}
+
+C --> UC1
+C --> UC2
+C --> UC3
+C --> UC4
+C --> UC5
+C --> UC6
+C --> UC7
+C --> UC8
+
+note bottom of UC3
+  若角色仍分配「设备管理」菜单
+  但限制为只读，需在业务层
+  与前端共同约束（图中为示意）。
+end note
+
+@enduml

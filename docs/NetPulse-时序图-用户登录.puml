@@ -1,0 +1,46 @@
+@startuml NetPulse_时序图_用户登录
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title NetPulse — 时序图：用户登录（/auth/login）
+
+actor "运维用户" as U
+participant "浏览器\n(Vue)" as FE
+participant "AuthController\nPOST /api/auth/login" as AC
+participant "SysUserRepository" as UR
+participant "PasswordEncoder" as PE
+participant "UserService" as US
+participant "AuditService" as AD
+participant "AuthTokenService" as TK
+
+U -> FE: 输入用户名、密码
+FE -> AC: POST /api/auth/login\n（axios baseURL=/api）\n{ username, password }
+
+AC -> UR: findByUsernameAndEnabledTrue(username)
+UR --> AC: SysUser 或空
+
+alt 用户不存在或密码为空
+  AC --> FE: 401 用户名或密码错误
+else 用户存在
+  AC -> PE: matches(明文, 存储哈希)
+  PE --> AC: 是否匹配
+  opt 兼容历史明文密码
+    AC -> UR: save(升级 BCrypt)
+  end
+  alt 密码错误
+    AC --> FE: 401
+  else 密码正确
+    AC -> AD: log(LOGIN, user, id, ...)
+    AC -> US: getRoleCodesByUserId(id)
+    US --> AC: roles
+    AC -> US: getAllowedMenuCodes(id)
+    US --> AC: allowedMenus
+    AC -> TK: issueToken(username)
+    TK --> AC: JWT
+    AC --> FE: 200 { token, user, roles, allowedMenus }
+    FE -> FE: 写入 localStorage\n跳转仪表盘
+  end
+end
+
+@enduml

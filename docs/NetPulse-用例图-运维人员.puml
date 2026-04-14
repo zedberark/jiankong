@@ -1,0 +1,41 @@
+@startuml NetPulse_用例图_运维人员
+!theme plain
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+left to right direction
+
+title NetPulse — 用例图（**运维人员**）\n典型分配：监控、告警、巡检、终端与运维控制台；不含用户管理
+
+actor "运维人员\n(非 ADMIN 角色)" as B #lightgreen
+
+rectangle "NetPulse 监控运维系统" #f0fdf4 {
+  usecase "用户登录与登出" as UC1
+  usecase "查看首页仪表盘" as UC2
+  usecase "设备管理\n(增删改查、导入、Ping)" as UC3
+  usecase "告警规则与告警历史" as UC4
+  usecase "实时指标与设备拓扑" as UC5
+  usecase "Web 终端与批量命令\n网络运维控制台" as UC6
+  usecase "系统巡检与报告导出" as UC7
+  usecase "AI 运维助手" as UC8
+  usecase "操作审计查询" as UC9
+  usecase "配置备份与恢复" as UC10
+}
+
+B --> UC1
+B --> UC2
+B --> UC3
+B --> UC4
+B --> UC5
+B --> UC6
+B --> UC7
+B --> UC8
+B --> UC9
+B --> UC10
+
+note right of B
+  实际菜单以 **role_menu** 为准；
+  若分配「系统设置」部分项，
+  可单独增加与 A 的扩展关系（图中略）。
+end note
+
+@enduml

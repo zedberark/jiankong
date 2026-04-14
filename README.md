@@ -63,42 +63,42 @@ ALTER TABLE device
 
 其他错误可看日志 **Caused by:** 下一行（如 `Connection refused`、`Access denied`、`Unknown database 'nebula_ops'`）再排查。
 
-**启动失败：Web server failed to start. Port 8082 was already in use**  
-说明本机 8082 已被占用（例如已有一个 NetPulse 或其它程序在跑）。处理方式二选一：  
-- **关闭占用端口的进程**：Windows 上 `netstat -ano | findstr :8082` 查 PID，再在任务管理器中结束该进程；或关闭已打开的 NetPulse/IDEA 运行实例。  
-- **换端口启动**：环境变量 `SERVER_PORT=8083`（或 `application.yml` 里 `server.port: 8083`），则访问时用 `http://localhost:8083/api`。前端若需对接该端口，改 `netpulse-ui/.env` 或接口 baseURL。
+**启动失败：Web server failed to start. Port 8083 was already in use**  
+说明本机 **8083** 已被占用（`application.yml` 默认 `server.port` 为 8083，与 `vite.config.js` 代理一致）。处理方式二选一：  
+- **关闭占用端口的进程**：Windows 上 `netstat -ano | findstr :8083` 查 PID，再在任务管理器中结束该进程；或关闭已打开的 NetPulse/IDEA 运行实例。  
+- **换端口启动**：环境变量 `SERVER_PORT=8084`（或修改 `application.yml` 中 `server.port`），并**同步**修改 `netpulse-ui/vite.config.js` 里 `proxy['/api'].target` 的端口。
 
 #### 如何检查各服务是否正常
 
 - **NetPulse 后端**的检查：在**能访问到后端的那台机器**上执行。
-  - 若后端跑在 **192.168.1.160 虚拟机**：可以在该 **Linux 虚拟机里**执行，用 `http://localhost:8082` 或 `http://192.168.1.160:8082`。
-  - 若后端跑在 **你本机 Windows（IDEA）**：在 **本机**打开 PowerShell 或 Git Bash，用 `http://localhost:8082`。
+  - 若后端跑在 **192.168.1.160 虚拟机**：可以在该 **Linux 虚拟机里**执行，用 `http://localhost:8083` 或 `http://192.168.1.160:8083`。
+  - 若后端跑在 **你本机 Windows（IDEA）**：在 **本机**打开 PowerShell 或 Git Bash，用 `http://localhost:8083`。
 - **InfluxDB** 的检查：InfluxDB 在 192.168.1.160 的 Docker 里，所以要在**能访问 192.168.1.160 的机器**上执行（本机或 192.168.1.160 虚拟机里都可以）。
 
 | 服务 | 检查命令 | 正常时 |
 |------|----------|--------|
-| **NetPulse 后端** | `curl -s -o /dev/null -w "%{http_code}" "http://192.168.1.160:8082/api/health"`（注意**必须带 /api**，否则会 404；本机则用 localhost:8082） | 返回 `200` |
+| **NetPulse 后端** | `curl -s -o /dev/null -w "%{http_code}" "http://192.168.1.160:8083/api/health"`（注意**必须带 /api**，否则会 404；本机则用 localhost:8083） | 返回 `200` |
 | **InfluxDB** | `curl -s -o /dev/null -w "%{http_code}" "http://192.168.1.160:8086/health"` | 返回 `200` |
-| **InfluxDB + 是否有数据** | `curl -s -H "X-User-Name: admin" "http://192.168.1.160:8082/api/metrics/influxdb-status"` | `reachable: true`、可选看 `hasRecentData` |
+| **InfluxDB + 是否有数据** | `curl -s -H "X-User-Name: admin" "http://192.168.1.160:8083/api/metrics/influxdb-status"` | `reachable: true`、可选看 `hasRecentData` |
 
 若 InfluxDB 能在浏览器打开（如 `http://192.168.1.160:8086/orgs/xxx`）且 `docker ps` 有容器，但后端 `/api/metrics/influxdb-status` 显示连接失败，请核对 `application.yml` 里 `influxdb.org`、`influxdb.bucket`、`influxdb.token` 与 InfluxDB 界面中的组织名、存储桶、Token 一致。
 
 后端依赖的 MySQL / Redis 若启动失败，后端日志会报错；需要单独检查时可在 **192.168.1.160 虚拟机里**用 Docker 或对应客户端（如 `mysql -h 192.168.1.160 -P 3309 -u root -p`、`redis-cli -h 192.168.1.160 -a root123456 ping`）验证。
 
-**网络设备 SNMP 采集（已默认关闭）**：  
-当前 **SNMP 采集默认关闭**（`snmp.collect.enabled=false`），实时指标页不显示「网络设备」表。若需采集 **EVE-NG 模拟器** 中路由器/交换机/防火墙的 CPU、内存：  
-1. 在 **application.yml** 中设置 `snmp.collect.enabled: true`（或 `SNMP_COLLECT_ENABLED=true`）并重启后端。  
+**网络设备 SNMP 采集**：  
+当前仓库中 **`snmp.collect.enabled` 默认为 `true`**（见 `application.yml`）。若你本地改成了 `false`，实时指标页可能缺少 SNMP 侧数据。若需采集 **EVE-NG 模拟器** 中路由器/交换机/防火墙的 CPU、内存：  
+1. 确认 **application.yml** 中 `snmp.collect.enabled: true`（或环境变量 `SNMP_COLLECT_ENABLED=true`）并重启后端。  
 2. 在 **设备管理** 中添加设备：填写管理 IP、类型（路由器/交换机/防火墙）、**SNMP**（v2c 社区名或 v3 用户名与认证/加密密码）、**SSH 用户名/密码**（用于 Web SSH 与告警修复）。  
 3. 在 EVE-NG 设备上开启 SNMP、Ping、SSH 并配置与上面一致的 SNMP 和登录账号。  
 详细步骤见 **[EVE-NG 网络设备监控配置指南](docs/EVE-NG网络设备监控配置指南.md)**。  
-诊断接口：`curl -s -H "X-User-Name: admin" "http://localhost:8082/api/metrics/snmp-redis-status"`。
+诊断接口：`curl -s -H "X-User-Name: admin" "http://localhost:8083/api/metrics/snmp-redis-status"`。
 
 **监控趋势（CPU/内存）无数据**：页面上「监控趋势」显示的是 Telegraf 写入的 **cpu**、**mem** 时序。请确认 Telegraf 已配置 `[[inputs.cpu]]` 和 `[[inputs.mem]]`，且设备管理里该设备的「名称」与 Telegraf 的 host（或主机名）一致。
 
 详细 InfluxDB 检查方式见下文 **七、检查 InfluxDB**。重新生成 Token 后需改哪些地方见 **八、重新生成 InfluxDB API Token 后需修改的地方**。
 
 **CPU/内存折线图（device_metric）**：项目提供基于 `device_metric` 结构的折线图页面与接口，与 Telegraf 的 cpu/mem 为两套数据源。  
-- 折线图页面：启动后端后访问 **http://localhost:8082/api/metric-chart.html**（设备ID、查询时长可调，点击「刷新数据」）。  
+- 折线图页面：启动后端后访问 **http://localhost:8083/api/metric-chart.html**（设备ID、查询时长可调，点击「刷新数据」）。  
 - 接口：`GET /api/metric/cpu-mem?deviceId=1&hours=1` 返回 CPU/内存时序 JSON。  
 - 数据要求：InfluxDB 桶 `device_metrics` 中需有 measurement=`device_metric`，tag 含 `device_id`、`metric_key`（如 `cpu_usage`、`mem_usage`），field `value`。若无数据，可在 Linux 上进入 InfluxDB 容器后执行测试写入（将下方 `YOUR_TOKEN` 换为实际 Token）：
 
@@ -120,7 +120,7 @@ done
 ## 二、启动网页（dev / prod 两套）
 
 要能正常打开并登录页面，需要**先启动后端，再启动前端**，最后在浏览器打开前端地址。  
-后端默认端口 `8082`，前端默认端口 `5173`。
+后端默认端口 **`8083`**（见 `NetPulse/src/main/resources/application.yml` 中 `server.port`）；前端开发端口以 **`netpulse-ui/vite.config.js`** 为准（当前为 **5181**，`npm run dev` 启动后终端会打印实际 Local URL）。
 
 ### 1) 开发环境（dev，默认）
 
@@ -141,7 +141,7 @@ cd NetPulse
 mvn spring-boot:run
 ```
 
-看到日志 `Started NetPulseApplication` / `Tomcat started on port ... 8082` 即表示后端已就绪。
+看到日志 `Started NetPulseApplication` / `Tomcat started on port ... 8083` 即表示后端已就绪（若改过 `SERVER_PORT` 则以日志为准）。
 
 #### 前端启动
 
@@ -151,11 +151,11 @@ npm install
 npm run dev
 ```
 
-看到 `Local: http://localhost:5173/` 即表示前端已就绪。
+看到终端输出 `Local: http://localhost:5181/`（或 vite.config 中配置的端口）即表示前端已就绪。
 
 #### 打开页面
 
-访问 `http://localhost:5173`。
+访问终端中打印的 Local 地址（默认 **`http://localhost:5181/`**）。
 
 ---
 
@@ -196,8 +196,8 @@ mvn spring-boot:run
 
 ### 3) 常见联调检查（避免“设备数据加载失败”）
 
-1. 先确认后端端口在监听：`8082`。  
-2. 再确认前端代理目标是 `http://localhost:8082`（见 `netpulse-ui/vite.config.js`）。  
+1. 先确认后端端口在监听：**`8083`**（或你设置的 `SERVER_PORT`）。  
+2. 再确认前端代理目标是 `http://localhost:8083`（见 `netpulse-ui/vite.config.js` 的 `proxy['/api'].target`）。  
 3. 浏览器出现“登录过期”时先重新登录；该情况不是后端不可达。  
 4. 若前端控制台出现 `/api/* ECONNREFUSED`，表示后端未启动或端口不通。
 
@@ -282,11 +282,11 @@ NetPulse/
 
 后端提供 `GET /api/metrics/influxdb-status`，返回：是否已配置、服务是否可达、最近 5 分钟内是否有 cpu/mem/disk/net 数据。
 
-在 **192.168.1.160 虚拟机**上执行（后端若在本机则用 localhost:8082，若也在虚拟机上则用 192.168.1.160:8082）：
+在 **192.168.1.160 虚拟机**上执行（后端若在本机则用 localhost:8083，若也在虚拟机上则用 192.168.1.160:8083）：
 
 ```bash
-curl -s -H "X-User-Name: admin" "http://localhost:8082/api/metrics/influxdb-status"
-# 或后端在别机时：curl -s -H "X-User-Name: admin" "http://192.168.1.160:8082/api/metrics/influxdb-status"
+curl -s -H "X-User-Name: admin" "http://localhost:8083/api/metrics/influxdb-status"
+# 或后端在别机时：curl -s -H "X-User-Name: admin" "http://192.168.1.160:8083/api/metrics/influxdb-status"
 ```
 
 返回示例：
@@ -383,7 +383,7 @@ influx query 'from(bucket:"device_metrics") |> range(start: -1h) |> filter(fn: (
 在能访问 NetPulse 后端的机器上执行（后端需已连 InfluxDB）：
 
 ```bash
-curl -s -H "X-User-Name: admin" "http://192.168.1.160:8082/api/metrics/influxdb-status"
+curl -s -H "X-User-Name: admin" "http://192.168.1.160:8083/api/metrics/influxdb-status"
 ```
 
 看返回里的 `dataSummary` 是否有近期数据；若 `reachable: true` 但 `hasRecentData: false`，多半是 Telegraf 的 `host` 与设备 IP 不一致，按上面 1～3 步在 Linux 上改 Telegraf 的 host 并重启。
@@ -392,15 +392,15 @@ curl -s -H "X-User-Name: admin" "http://192.168.1.160:8082/api/metrics/influxdb-
 
 ## 十、常见问题（启动失败等）
 
-### 1. 后端启动报错：Port 8082 was already in use
+### 1. 后端启动报错：Port 8083 was already in use
 
-**原因**：本机已有进程占用 8082 端口（例如之前未关闭的 NetPulse 或其它服务）。默认端口已改为 **8082**。
+**原因**：本机已有进程占用 **8083** 端口（例如之前未关闭的 NetPulse 或其它服务）。当前默认端口为 **8083**（见 `application.yml`）。
 
 **处理方式任选其一：**
 
-- **释放 8082 端口**（Windows PowerShell）：
+- **释放 8083 端口**（Windows PowerShell）：
   ```powershell
-  netstat -ano | findstr :8082
+  netstat -ano | findstr :8083
   taskkill /PID <上一步看到的 PID> /F
   ```
 - **改用其它端口**：在 `application.yml` 所在目录或环境变量中设置 `SERVER_PORT`，例如：

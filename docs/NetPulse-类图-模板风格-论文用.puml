@@ -1,0 +1,100 @@
+@startuml NetPulse_类图_模板风格_论文用
+!theme plain
+skinparam backgroundColor white
+skinparam classBackgroundColor #eef0ff
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam linetype polyline
+skinparam ArrowThickness 1.1
+skinparam nodesep 55
+skinparam ranksep 60
+top to bottom direction
+scale max 1300 width
+
+title NetPulse 类图（论文模板风格）
+
+class "① Device实体类\n【设备数据模型】" as DeviceEntity {
+  -id : Long
+  -name : String
+  -ip : String
+  -type : DeviceType
+  -status : DeviceStatus
+  -groupName : String
+  --
+  +getId()
+  +setStatus(status)
+  +setGroupName(group)
+}
+
+interface "② DeviceService接口类\n【业务能力定义】" as DeviceServiceApi {
+  +findAll(group) : List<Device>
+  +findById(id) : Optional<Device>
+  +save(device) : Device
+  +deleteById(id)
+  +pingDevice(id)
+}
+
+class "③ DeviceService实现类\n【业务逻辑实现】" as DeviceServiceImpl {
+  -deviceRepository : DeviceRepository
+  -monitorService : MonitorService
+  --
+  +findAll(group)
+  +findById(id)
+  +save(device)
+  +deleteById(id)
+  +pingDevice(id)
+  +getGroupNames()
+}
+
+interface "④ DeviceRepository接口类\n【数据访问接口】" as DeviceRepoApi {
+  +findAllByDeletedFalse()
+  +findByIdAndDeletedFalse(id)
+  +save(entity)
+  +updateStatusAndLastPollTime(...)
+}
+
+class "⑤ DeviceController类\n【接口控制入口】" as DeviceController {
+  -deviceService : DeviceService
+  -auditService : AuditService
+  --
+  +list(group)
+  +get(id)
+  +create(device)
+  +update(id, device)
+  +remove(id)
+  +ping(id)
+}
+
+class "⑥ MonitorService类\n【可达性探测服务】" as MonitorService {
+  +checkReachability(device)
+  +pollAllDevices()
+  +writeDeviceStatus()
+}
+
+class "⑦ AuditService类\n【审计日志服务】" as AuditService {
+  +log(action, targetType, targetId, detail)
+}
+
+' 布局辅助（同一类链上下排列）
+DeviceController -[hidden]down-> DeviceServiceApi
+DeviceServiceApi -[hidden]down-> DeviceServiceImpl
+DeviceServiceImpl -[hidden]down-> DeviceRepoApi
+DeviceRepoApi -[hidden]down-> DeviceEntity
+MonitorService -[hidden]down-> AuditService
+
+' 关系
+DeviceController --> DeviceServiceApi : 调用
+DeviceController --> AuditService : 记录审计
+DeviceServiceImpl ..|> DeviceServiceApi : 实现
+DeviceServiceImpl --> DeviceRepoApi : 依赖
+DeviceServiceImpl --> MonitorService : 调用探测
+DeviceRepoApi ..> DeviceEntity : 持久化映射
+DeviceServiceImpl ..> DeviceEntity : 组装/返回
+DeviceController ..> DeviceEntity : 请求/响应体
+
+
+
+@enduml

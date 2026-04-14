@@ -1,0 +1,83 @@
+@startuml NetPulse_类图_关键类_极简版_论文用
+' 黑白 + 关键类：设备监控主链路（论文正文一图看懂）
+!theme plain
+skinparam monochrome true
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam nodesep 24
+skinparam ranksep 26
+skinparam classFontSize 10
+hide empty methods
+left to right direction
+scale max 980 width
+
+title NetPulse 关键类图（黑白极简版）
+
+class "DeviceController\n设备管理控制器" as DevC {
+  -deviceService : DeviceService
+  -auditService : AuditService
+  --
+  +list(group)
+  +save(device)
+  +ping(id)
+}
+
+class "DeviceService\n设备业务服务" as DevS {
+  -deviceRepository : DeviceRepository
+  -monitorService : MonitorService
+  --
+  +findAll(group)
+  +save(device)
+  +pingDevice(id)
+}
+
+interface "DeviceRepository\n设备仓储接口" as DevR {
+  +findByDeletedFalse()
+  +findById(id)
+  +save(entity)
+}
+
+class "MonitorService\n状态探测服务" as MonS {
+  +ping(ip)
+  +pollAllDevices()
+}
+
+class "AuditService\n审计服务" as AudS {
+  +log(action,target,id,detail)
+}
+
+class "Device\n设备实体" as DevE {
+  -id : Long
+  -name : String
+  -ip : String
+  -status : DeviceStatus
+}
+
+class "AuditLog\n审计日志实体" as AudE {
+  -id : Long
+  -action : String
+  -targetId : Long
+  -createTime : LocalDateTime
+}
+
+' 排版
+DevC -[hidden]right-> DevS
+DevS -[hidden]right-> DevR
+DevR -[hidden]right-> MonS
+MonS -[hidden]down-> AudS
+DevE -[hidden]down-> AudE
+
+' 关键依赖
+DevC --> DevS : 调用
+DevC --> AudS : 记录审计
+DevS --> DevR : 持久化
+DevS --> MonS : 探测调用
+DevR ..> DevE : ORM映射
+AudS ..> AudE : 写入日志
+
+legend bottom
+仅保留设备管理主链路关键类，黑白单页适配论文正文。
+endlegend
+
+@enduml

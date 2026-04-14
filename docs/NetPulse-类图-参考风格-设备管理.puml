@@ -1,0 +1,112 @@
+@startuml NetPulse_类图_参考风格_设备管理
+!theme plain
+skinparam backgroundColor white
+skinparam classBackgroundColor #fff9db
+skinparam classBorderColor #333333
+skinparam classFontColor #111111
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam linetype polyline
+skinparam ArrowThickness 1.0
+skinparam nodesep 55
+skinparam ranksep 65
+left to right direction
+scale max 1500 width
+
+title NetPulse 类图（参考风格示例：设备管理子系统）
+
+class "«Java Class»\nDeviceController（设备控制器）" as DeviceController {
+  -deviceService: DeviceService
+  -auditService: AuditService
+  --
+  +list(group:String): List<Device>
+  +get(id:Long): ResponseEntity<Device>
+  +create(device:Device): ResponseEntity<?>
+  +update(id:Long, device:Device): ResponseEntity<?>
+  +remove(id:Long): ResponseEntity<?>
+  +ping(id:Long): ResponseEntity<?>
+}
+
+interface "«Java Interface»\nDeviceService（设备服务接口）" as DeviceService {
+  +findAll(group:String): List<Device>
+  +findById(id:Long): Optional<Device>
+  +save(device:Device): Device
+  +deleteById(id:Long): void
+  +pingDevice(id:Long): Map<String,Object>
+  +getGroupNames(): List<String>
+}
+
+class "«Java Class»\nDeviceServiceImpl（设备服务实现）" as DeviceServiceImpl {
+  -deviceRepository: DeviceRepository
+  -monitorService: MonitorService
+  --
+  +findAll(group:String): List<Device>
+  +findById(id:Long): Optional<Device>
+  +save(device:Device): Device
+  +deleteById(id:Long): void
+  +pingDevice(id:Long): Map<String,Object>
+}
+
+interface "«Java Interface»\nDeviceRepository（设备仓储接口）" as DeviceRepository {
+  +findAllByDeletedFalse(): List<Device>
+  +findByIdAndDeletedFalse(id:Long): Optional<Device>
+  +save(entity:Device): Device
+  +updateStatusAndLastPollTime(...): int
+}
+
+class "«Java Class»\nMonitorService（状态监测服务）" as MonitorService {
+  +checkReachability(device:Device): ReachabilityResult
+  +pollAllDevices(): void
+  +writeDeviceStatus(...): void
+}
+
+class "«Java Class»\nAuditService（审计服务）" as AuditService {
+  +log(action:String, targetType:String,\n targetId:Long, detail:String): void
+}
+
+class "«Java Class»\nDevice（设备实体）" as Device {
+  -id: Long
+  -name: String
+  -ip: String
+  -type: DeviceType
+  -status: DeviceStatus
+  -groupName: String
+  -sshPort: Integer
+  -snmpPort: Integer
+  --
+  +prePersist(): void
+  +preUpdate(): void
+}
+
+class "«Java Class»\nAuditLog（审计日志实体）" as AuditLog {
+  -id: Long
+  -username: String
+  -action: String
+  -targetType: String
+  -targetId: Long
+  -createTime: LocalDateTime
+}
+
+' 布局参考图风格：中间实现类，左控制，右接口，下方实体
+DeviceController -[hidden]down-> DeviceService
+DeviceService -[hidden]down-> DeviceServiceImpl
+DeviceServiceImpl -[hidden]down-> DeviceRepository
+DeviceRepository -[hidden]down-> Device
+
+' 关系
+DeviceController --> DeviceService : 调用
+DeviceController --> AuditService : 记录审计
+DeviceServiceImpl ..|> DeviceService : 实现
+DeviceServiceImpl --> DeviceRepository : 访问数据
+DeviceServiceImpl --> MonitorService : 调用探测
+DeviceRepository ..> Device : 持久化
+DeviceController ..> Device : 请求/响应体
+AuditService ..> AuditLog : 写入
+
+note bottom
+  说明：该图按“参考模板风格”绘制（类名/属性/方法三栏，接口与实现分离），
+  展示 NetPulse 设备管理子系统的核心静态结构关系。
+end note
+
+@enduml

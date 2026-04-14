@@ -1,0 +1,96 @@
+@startuml NetPulse_类图_四层分层_与实体图配套
+' =============================================================================
+' 与「领域实体类图」配套：实体图侧重对象与关联；本图侧重 Spring 典型四层依赖。
+' 题注建议：图4-x NetPulse 后端分层类图（Controller / Service / Repository / Entity）
+' =============================================================================
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam linetype polyline
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam nodesep 28
+skinparam ranksep 32
+hide empty methods
+top to bottom direction
+scale max 1800 width
+
+title NetPulse 后端四层类图（与领域实体图配套）
+
+note as N
+  **说明**：领域实体类图突出 **数据对象、多重性与业务关联**；
+  本图突出 **控制层 → 服务层 → 持久层 → 实体** 的调用与依赖方向。
+  少数 CRUD 控制器可直接注入仓储（如告警规则管理），图中一并标出，避免与「必须经过 Service」的教条冲突。
+end note
+
+package "① 控制层 Controller" #dae8fc {
+  class AuthController
+  class DeviceController
+  class AlertController
+  class AlarmRulesController
+  class AiChatController
+}
+
+package "② 业务层 Service" #d5e8d4 {
+  class UserService
+  class DeviceService
+  class AlertService
+  class AiChatService
+  class AuditService
+}
+
+package "③ 持久层 Repository" #fff2cc {
+  interface SysUserRepository <<interface>>
+  interface DeviceRepository <<interface>>
+  interface AlertRuleRepository <<interface>>
+  interface AlarmRulesRepository <<interface>>
+  interface AiChatSessionRepository <<interface>>
+}
+
+package "④ 领域实体 Entity" #e1d5e7 {
+  class SysUser
+  class Device
+  class AlertRule
+  class AlarmRules
+  class AiChatSession
+}
+
+' ---------- Controller → Service ----------
+AuthController --> UserService : 登录校验
+AuthController --> AuditService : 登录审计
+DeviceController --> DeviceService : 业务编排
+DeviceController --> AuditService : 操作审计
+AlertController --> AlertService : 规则/历史
+AlertController --> AuditService : 操作审计
+AiChatController --> AiChatService : 对话与上下文
+AiChatController --> AuditService : 操作审计
+
+' ---------- 直接 Controller → Repository（薄 CRUD）----------
+AlarmRulesController --> AlarmRulesRepository : CRUD
+AlarmRulesController --> AuditService : 规则审计
+
+' ---------- Service → Repository ----------
+UserService --> SysUserRepository
+DeviceService --> DeviceRepository
+AlertService --> AlertRuleRepository
+AiChatService --> AiChatSessionRepository
+note right of AuditService
+  审计写入经 **AuditLogRepository**
+  落库至 AuditLog（图中从略）
+end note
+
+' ---------- Repository → Entity ----------
+SysUserRepository ..> SysUser : JPA ORM
+DeviceRepository ..> Device
+AlertRuleRepository ..> AlertRule
+AlarmRulesRepository ..> AlarmRules
+AiChatSessionRepository ..> AiChatSession
+
+legend right
+  |= 与多张类图的分工 |
+  | **领域实体图**：表结构视角的类与关系 |
+  | **本图**：分层架构视角的依赖方向 |
+  | **全量分层**：见 `NetPulse-类图-论文新版-分层.puml` |
+endlegend
+
+@enduml

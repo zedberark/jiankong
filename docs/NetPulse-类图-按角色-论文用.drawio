@@ -1,0 +1,186 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.6 Chrome/144.0.7559.236 Electron/40.8.4 Safari/537.36" version="29.6.6" pages="5">
+  <diagram id="np-overview" name="1-总览">
+    <mxGraphModel dx="1426" dy="841" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" value="NetPulse 后端类与模块总览（按角色划分，风格参考项目树状结构图）" vertex="1">
+          <mxGeometry height="32" width="800" x="200" y="16" as="geometry" />
+        </mxCell>
+        <mxCell id="root" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=13;align=center;" value="NetPulse&#xa;org.ops.netpulse&#xa;（Spring Boot 后端）" vertex="1">
+          <mxGeometry height="72" width="280" x="460" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="a1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" value="管理员（ADMIN）&#xa;用户/角色/菜单模板、系统配置、&#xa;API 密钥、审计日志、配置备份、导出" vertex="1">
+          <mxGeometry height="88" width="280" x="80" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" value="运维（OPS）&#xa;设备、拓扑、监控指标、告警、巡检、&#xa;批量命令、WebSSH/SNMP、AI 运维助手" vertex="1">
+          <mxGeometry height="88" width="300" x="420" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=10;fontSize=11;" value="员工 / 访客（GUEST）&#xa;与代码中「访客」角色一致；&#xa;复用同一套 Controller，由 role_menu&#xa;与用户菜单接口限制可见范围（偏只读）" vertex="1">
+          <mxGeometry height="100" width="300" x="780" y="200" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="root" style="endArrow=block;endFill=1;html=1;exitX=0.25;exitY=1;entryX=0.5;entryY=0;" target="a1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="root" style="endArrow=block;endFill=1;html=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="a2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="root" style="endArrow=block;endFill=1;html=1;exitX=0.75;exitY=1;entryX=0.5;entryY=0;" target="a3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pkg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;spacingLeft=12;fontSize=11;" value="包结构（物理目录）&#xa;controller · service · entity · repository ·&#xa;security · config · snmp · websocket · dto" vertex="1">
+          <mxGeometry height="72" width="1000" x="80" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="note" parent="1" style="text;html=1;strokeColor=#999999;fillColor=#fafafa;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=11;spacing=8;" value="说明：权限以 JWT + 角色菜单模板（MenuConstants 与 role_menu 表）为主；本图按业务角色归类主要 Java 类，与「仅 UML 类图」相比更贴近论文中的项目结构树。" vertex="1">
+          <mxGeometry height="56" width="1000" x="80" y="440" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="np-admin" name="2-管理员">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ad-title" value="管理员（ADMIN）— 主要类与模块" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="360" y="12" width="480" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-root" value="管理员域" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="480" y="48" width="240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-c" value="控制层 controller&#xa;UserController&#xa;RoleController&#xa;SystemConfigController&#xa;ApiSettingsController&#xa;AuditLogController&#xa;ConfigBackupController&#xa;ExportController" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="220" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-s" value="业务层 service&#xa;UserService&#xa;RoleMenuService&#xa;SystemConfigService&#xa;AuditService&#xa;AuditLogQueryService&#xa;ConfigBackupService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="340" y="120" width="220" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-r" value="持久层 repository&#xa;SysUserRepository&#xa;RoleRepository&#xa;UserRoleRepository&#xa;RoleMenuRepository&#xa;SystemConfigRepository&#xa;AuditLogRepository&#xa;ConfigBackupRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="600" y="120" width="240" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-e" value="实体 entity&#xa;SysUser&#xa;Role&#xa;UserRole&#xa;RoleMenu&#xa;SystemConfig&#xa;AuditLog&#xa;ConfigBackup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="880" y="120" width="200" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-cfg" value="配置与启动（与管理员数据相关）&#xa;InitialAdminRunner&#xa;InitialRolesRunner&#xa;RoleMenuSeeder&#xa;MenuConstants（全量菜单编码）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="360" width="1000" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-auth" value="公共：登录鉴权（管理员亦使用）&#xa;AuthController · AuthTokenService · AuthTokenInterceptor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="468" width="1000" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-ar1" edge="1" parent="1" source="ad-c" target="ad-s" style="endArrow=open;html=1;dashed=1;endFill=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-ar2" edge="1" parent="1" source="ad-s" target="ad-r" style="endArrow=open;html=1;dashed=1;endFill=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ad-ar3" edge="1" parent="1" source="ad-r" target="ad-e" style="endArrow=open;html=1;dashed=1;endFill=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="np-ops" name="3-运维">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="op-title" value="运维（OPS）— 主要类与模块" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="360" y="12" width="480" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="op-root" value="运维域" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=14;align=center;" vertex="1" parent="1">
+          <mxGeometry x="480" y="48" width="240" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="op-c" value="控制层 controller&#xa;DeviceController&#xa;AlertController&#xa;InspectionController&#xa;BatchCommandController&#xa;MetricsController&#xa;MetricController&#xa;AiChatController&#xa;HealthController" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="110" width="240" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="op-s" value="业务层 service（节选）&#xa;DeviceService · DeviceStatsService&#xa;MonitorService · DeviceVendorFillService&#xa;DeviceSshCollectService&#xa;AlertService · AlertEmailService&#xa;RemediationService&#xa;InfluxDbMetricService&#xa;SnmpStatsService&#xa;LocalHostStatsService&#xa;InspectionService · InspectionScheduleService&#xa;BatchCommandService&#xa;WebSshService&#xa;AiChatService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="110" width="280" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="op-snmp" value="SNMP 采集&#xa;SnmpCollectService&#xa;DeviceSnmpCollectService&#xa;SnmpRedisConfig&#xa;SnmpUtils · SnmpV3Params" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f9e6;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="110" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="op-ws" value="WebSocket&#xa;SshWebSocketHandler&#xa;WebSocketConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f9e6;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="250" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="op-r" value="持久层 repository（节选）&#xa;DeviceRepository&#xa;AlertRuleRepository · AlertHistoryRepository&#xa;AlertTemplateRepository&#xa;InspectionReportRepository&#xa;AiChatSessionRepository&#xa;AiChatMessageRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="280" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="op-e" value="实体 entity（节选）&#xa;Device&#xa;AlertRule · AlertHistory · AlertTemplate&#xa;InspectionReport · InspectionItem&#xa;AiChatSession · AiChatMessage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="380" y="400" width="280" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="op-dto" value="DTO&#xa;InspectionItemRow&#xa;InspectionReportDetailDto 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="700" y="400" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="op-note" value="说明：InfluxDB、Redis、SNMP 等外部依赖通过 InfluxDbConfig、SnmpRedisConfig 等配置类注入（见「公共配置」分页）。" style="text;html=1;strokeColor=#999999;fillColor=#fafafa;align=left;whiteSpace=wrap;rounded=1;fontSize=11;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="620" width="860" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="op-a1" edge="1" parent="1" source="op-c" target="op-s" style="endArrow=open;html=1;dashed=1;endFill=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="op-a2" edge="1" parent="1" source="op-s" target="op-r" style="endArrow=open;html=1;dashed=1;endFill=0;exitX=0.25;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="np-guest" name="4-员工访客">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="g-title" value="员工 / 访客（GUEST）— 访问范围与相关类" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="300" y="16" width="600" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box1" value="角色说明&#xa;数据库/代码中角色码为 GUEST（访客），论文中可表述为「普通员工只读账号」。&#xa;不单独实现一套 Controller，与管理员、运维共用 REST API。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="60" width="1040" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box2" value="菜单与权限&#xa;MenuConstants.ALL_MENU_CODES 定义侧栏编码；&#xa;用户登录后 UserService 按用户角色聚合 role_menu，返回可见菜单列表；&#xa;ADMIN 用户始终拥有全部菜单。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="500" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box3" value="核心关联类&#xa;UserService（getMenus 等）&#xa;RoleMenuService&#xa;RoleRepository · RoleMenuRepository&#xa;UserRoleRepository · SysUserRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="620" y="150" width="500" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box4" value="访客典型可访问能力（由前端路由 + 后端接口权限共同约束，具体以实际 role_menu 配置为准）&#xa;· 仪表盘、设备列表只读、指标查看、部分告警/巡检报告查看 等" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#d6b656;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="1040" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box5" value="鉴权入口（所有角色共用）&#xa;AuthController · AuthTokenService · AuthTokenInterceptor" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e6f2ff;strokeColor=#6c8ebf;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="360" width="1040" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="g-box6" value="实体：SysUser · Role · UserRole · RoleMenu（与管理员分页一致，此处强调「用户-角色-菜单」三元关系）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;align=left;spacingLeft=12;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="1040" height="48" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="np-common" name="5-公共实体仓储">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="cm-title" value="公共：实体、仓储与安全（全项目共享）" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=15;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="340" y="12" width="520" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-e" value="实体 entity（完整列表）&#xa;AiChatMessage · AiChatSession&#xa;AlertHistory · AlertRule · AlertTemplate&#xa;AuditLog · ConfigBackup&#xa;Device · InspectionItem · InspectionReport&#xa;Role · RoleMenu · SysUser · UserRole&#xa;SystemConfig" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="56" width="360" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-r" value="仓储 repository（完整列表）&#xa;AiChatMessageRepository · AiChatSessionRepository&#xa;AlertHistoryRepository · AlertRuleRepository · AlertTemplateRepository&#xa;AuditLogRepository · ConfigBackupRepository&#xa;DeviceRepository · InspectionReportRepository&#xa;RoleMenuRepository · RoleRepository&#xa;SysUserRepository · UserRoleRepository&#xa;SystemConfigRepository" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="480" y="56" width="520" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-sec" value="安全 security&#xa;AuthTokenInterceptor&#xa;AuthTokenService" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="280" width="280" height="88" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-app" value="入口&#xa;NetPulseApplication" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="400" y="280" width="200" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-util" value="工具 util（示例）&#xa;OsReleaseParser 等" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="640" y="280" width="200" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-cfg" value="配置 config（节选）&#xa;WebConfig · WebSocketConfig · PasswordConfig&#xa;InfluxDbConfig · InitialAdminRunner · InitialRolesRunner&#xa;RoleMenuSeeder · MenuConstants" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;spacingLeft=10;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="400" width="920" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="cm-foot" value="论文表述建议：可先展示本页「全量实体/仓储」，再在前文按管理员/运维/访客分页说明业务侧重。" style="text;html=1;strokeColor=#999999;fillColor=#fafafa;align=left;whiteSpace=wrap;rounded=1;fontSize=11;spacing=8;" vertex="1" parent="1">
+          <mxGeometry x="80" y="530" width="920" height="40" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

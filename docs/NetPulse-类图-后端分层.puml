@@ -1,0 +1,65 @@
+@startuml NetPulse_后端分层类图
+!theme plain
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+title NetPulse — 后端典型分层（控制器 → 服务 → 仓储 → 实体）
+
+package "控制层 controller" #dae8fc {
+  class DeviceController {
+    +list()
+    +save()
+    +ping()
+  }
+  class AlertController
+  class AuthController
+  class AiChatController
+  class InspectionController
+}
+
+package "服务层 service" #d5e8d4 {
+  class DeviceService {
+    +findAll()
+    +save()
+  }
+  class MonitorService
+  class AlertService
+  class AiChatService
+  class InspectionService
+  class UserService
+}
+
+package "数据访问层 repository" #fff2cc {
+  interface DeviceRepository <<interface>> {
+    JpaRepository~Device,Long~
+  }
+  interface AlertRuleRepository <<interface>>
+  interface AiChatSessionRepository <<interface>>
+  interface InspectionReportRepository <<interface>>
+}
+
+package "实体 entity" #e1d5e7 {
+  class Device
+  class AlertRule
+  class AiChatSession
+  class InspectionReport
+}
+
+DeviceController --> DeviceService : 依赖
+DeviceService --> DeviceRepository
+DeviceService --> MonitorService
+AlertController --> AlertService
+AiChatController --> AiChatService
+InspectionController --> InspectionService
+
+DeviceRepository ..> Device : 持久化
+AlertRuleRepository ..> AlertRule
+AiChatSessionRepository ..> AiChatSession
+InspectionReportRepository ..> InspectionReport
+
+note as N
+  **说明**：实际工程中 Controller 可注入多个 Service；
+  各 Service 可跨仓储协作；此处仅示意
+  「设备」纵向依赖链与分层边界。
+end note
+
+@enduml
