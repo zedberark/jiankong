@@ -12,7 +12,7 @@
       <span v-if="selectedDevice" class="port-badge">端口 {{ selectedDevice.sshPort ?? 22 }} ({{ (selectedDevice.sshPort ?? 22) === 23 ? 'Telnet' : 'SSH' }})</span>
       <button v-if="connected" class="danger small" @click="disconnect">断开</button>
       <button v-else class="primary small" @click="connect" :disabled="!selectedId">连接</button>
-      <span class="hint">按设备管理中的端口连接：22=SSH，23=Telnet，均输出到本终端</span>
+      <span class="hint">按设备管理中的端口连接：均输出到本终端</span>
     </div>
     <div ref="terminalRef" class="terminal-container"></div>
   </div>

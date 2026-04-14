@@ -9,8 +9,9 @@ export function getDeviceStatusTimeline(params) {
 }
 
 /** 实时指标：所有设备 CPU/内存、健康汇总、数据来源（Linux/网络设备） */
-export function getRealtimeMetrics() {
-  return request.get('/metrics/realtime')
+export function getRealtimeMetrics(signal) {
+  // 实时指标包含设备列表 + 指标合并，设备较多时耗时会高于默认 30s
+  return request.get('/metrics/realtime', { timeout: 60000, signal })
 }
 
 /** 立即触发一次采集刷新（Linux 同步，网络设备异步），用于设备指标页「刷新」按钮 */
